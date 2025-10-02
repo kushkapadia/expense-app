@@ -68,6 +68,16 @@ export interface InvestmentLock {
 	updatedAt: number;
 }
 
+export interface WalletHistory {
+	id: string;
+	userId: string;
+	wallet: WalletType;
+	amount: number;
+	reason: string;
+	createdAt: number;
+	updatedAt: number;
+}
+
 export const collections = {
 	wallets: "wallets",
 	transactions: "transactions",

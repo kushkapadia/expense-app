@@ -25,7 +25,7 @@ export default function LoginPage() {
 				try {
 					await signInWithRedirect(getFirebaseAuth(), getGoogleProvider());
 					return;
-				} catch (e) {
+				} catch {
 					// Fall through to error toast
 				}
 			}

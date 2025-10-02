@@ -1,10 +1,35 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+// Type definitions
+interface Transaction {
+	id: string;
+	amount: number;
+	type: 'expense' | 'income' | 'transfer';
+	category: string;
+	wallet: string;
+	date: number;
+	isSettlement?: boolean;
+}
+
+
+interface MonthlyData {
+	month: string;
+	monthKey: string;
+	total: number;
+	expenses: number;
+	income: number;
+	transfers: number;
+	settlements: number;
+	categories: Record<string, number>;
+	wallets: Record<string, number>;
+	transactionCount: number;
+}
 import { useAuth } from "@/lib/auth";
-import { listTransactions, listBudgets, ensureBudgetsForMonth } from "@/lib/db";
+import { listTransactions, ensureBudgetsForMonth } from "@/lib/db";
 import { useQuery } from "@tanstack/react-query";
-import { Bar, BarChart, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Area, AreaChart } from "recharts";
+import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Area, AreaChart } from "recharts";
 import { motion } from "framer-motion";
 import { useMemo, useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -20,7 +45,7 @@ export default function AnalyticsPage() {
 		queryKey: ["analytics-transactions", user?.uid],
 		enabled: !!user,
 		queryFn: async () => {
-			if (!user) return [] as any[];
+			if (!user) return [];
 			return await listTransactions(user.uid);
 		},
 	});
@@ -29,7 +54,7 @@ export default function AnalyticsPage() {
 		queryKey: ["analytics-budgets", user?.uid, selectedMonth],
 		enabled: !!user,
 		queryFn: async () => {
-			if (!user) return [] as any[];
+			if (!user) return [];
 			const month = selectedMonth || new Date().toISOString().slice(0, 7);
 			return await ensureBudgetsForMonth(user.uid, month);
 		},
@@ -39,9 +64,9 @@ export default function AnalyticsPage() {
 	const monthlyData = useMemo(() => {
 		if (!transactions) return [];
 		
-		const monthlyTotals: Record<string, any> = {};
+		const monthlyTotals: Record<string, MonthlyData> = {};
 		
-		transactions.forEach((tx: any) => {
+		transactions.forEach((tx: Transaction) => {
 			const date = new Date(tx.date);
 			const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 			const monthName = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
@@ -324,7 +349,7 @@ export default function AnalyticsPage() {
 											cy="50%"
 											outerRadius={80}
 											dataKey="value"
-											label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+											label={(props: any) => `${props.name} ${(props.percent * 100).toFixed(0)}%`}
 										>
 											{categoryData.map((entry, index) => (
 												<Cell key={`cell-${index}`} fill={entry.color} />
@@ -403,21 +428,21 @@ export default function AnalyticsPage() {
 							<div className="text-center p-4 border rounded-lg">
 								<div className="text-2xl mb-2">💵</div>
 								<div className="font-medium">Cash</div>
-								<div className={`text-lg font-bold ${selectedMonthData?.wallets.cash >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+								<div className={`text-lg font-bold ${(selectedMonthData?.wallets.cash || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
 									₹{selectedMonthData?.wallets.cash || 0}
 								</div>
 							</div>
 							<div className="text-center p-4 border rounded-lg">
 								<div className="text-2xl mb-2">📲</div>
 								<div className="font-medium">GPay</div>
-								<div className={`text-lg font-bold ${selectedMonthData?.wallets.gpay >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+								<div className={`text-lg font-bold ${(selectedMonthData?.wallets.gpay || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
 									₹{selectedMonthData?.wallets.gpay || 0}
 								</div>
 							</div>
 							<div className="text-center p-4 border rounded-lg">
 								<div className="text-2xl mb-2">📈</div>
 								<div className="font-medium">Investment</div>
-								<div className={`text-lg font-bold ${selectedMonthData?.wallets.investment >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+								<div className={`text-lg font-bold ${(selectedMonthData?.wallets.investment || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
 									₹{selectedMonthData?.wallets.investment || 0}
 								</div>
 							</div>

@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useQuery } from "@tanstack/react-query";
-import { getWallets, applyPreset, adjustWalletBalance, listRecentTransactions, listBudgets, listTransactions, listPresets, ensureBudgetsForMonth } from "@/lib/db";
+import { getWallets, applyPreset, adjustWalletBalance, listRecentTransactions, listTransactions, listPresets, ensureBudgetsForMonth } from "@/lib/db";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 import { useMemo, useRef, useState } from "react";
@@ -36,7 +36,7 @@ export default function DashboardPage() {
 		queryKey: ["recent-dashboard", user?.uid],
 		enabled: !!user,
 		queryFn: async () => {
-			if (!user) return [] as any[];
+			if (!user) return [];
 			return await listRecentTransactions(user.uid, 50);
 		},
 	});
@@ -45,9 +45,9 @@ export default function DashboardPage() {
 		queryKey: ["recent-list", user?.uid],
 		enabled: !!user,
 		queryFn: async () => {
-			if (!user) return [] as any[];
+			if (!user) return [];
             const items = await listRecentTransactions(user.uid, 8);
-            return items.sort((a: any, b: any) => (b.date ?? 0) - (a.date ?? 0));
+            return items.sort((a: { date?: number }, b: { date?: number }) => (b.date ?? 0) - (a.date ?? 0));
 		},
 	});
 

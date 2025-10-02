@@ -1,6 +1,6 @@
 import { getFirestoreDb } from "@/lib/firebase";
 import { addDoc, collection, doc, getDoc, getDocs, increment, limit, orderBy, query, setDoc, updateDoc, where } from "firebase/firestore";
-import type { Transaction, Wallet, WalletType } from "@/types/db";
+import type { Transaction, Wallet, WalletType, Budget, Preset, WalletHistory } from "@/types/db";
 
 const db = () => getFirestoreDb();
 
@@ -29,21 +29,21 @@ export async function getWallets(userId: string): Promise<Record<WalletType, Wal
 	return result as Record<WalletType, Wallet>;
 }
 
-export async function listTransactions(userId: string, month?: string) {
-	let q = query(collection(db(), "transactions"), where("userId", "==", userId), orderBy("date", "desc"));
+export async function listTransactions(userId: string) {
+	const q = query(collection(db(), "transactions"), where("userId", "==", userId), orderBy("date", "desc"));
 	const results = await getDocs(q);
-	return results.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as Transaction[] as any;
+	return results.docs.map((d) => ({ id: d.id, ...d.data() })) as Transaction[];
 }
 
 export async function listRecentTransactions(userId: string, take = 10) {
 	const q = query(collection(db(), "transactions"), where("userId", "==", userId), orderBy("date", "desc"), limit(take));
 	const results = await getDocs(q);
-	return results.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+	return results.docs.map((d) => ({ id: d.id, ...d.data() })) as Transaction[];
 }
 
 export async function createTransaction(userId: string, tx: Omit<Transaction, "id" | "userId" | "createdAt" | "updatedAt">) {
 	// Remove undefined fields – Firestore rejects undefined
-	const cleaned: Record<string, any> = {};
+	const cleaned: Record<string, unknown> = {};
 	for (const [k, v] of Object.entries(tx)) {
 		if (v !== undefined) cleaned[k] = v;
 	}
@@ -132,7 +132,7 @@ export async function upsertBudget(userId: string, input: BudgetInput) {
 export async function listBudgets(userId: string, month: string) {
 	const q = query(collection(db(), "budgets"), where("userId", "==", userId), where("month", "==", month));
 	const res = await getDocs(q);
-	return res.docs.map((d) => d.data()) as any[];
+	return res.docs.map((d) => d.data()) as Budget[];
 }
 
 // Auto-create budgets for new month based on previous month's budgets
@@ -172,7 +172,7 @@ export async function createPresetDoc(userId: string, p: PresetInput) {
 export async function listPresets(userId: string) {
 	const q = query(collection(db(), "presets"), where("userId", "==", userId));
 	const res = await getDocs(q);
-	return res.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+	return res.docs.map((d) => ({ id: d.id, ...d.data() })) as Preset[];
 }
 
 // Settlements
@@ -201,7 +201,7 @@ export async function aggregateMonthlySpend(userId: string, month: string) {
 	const start = new Date(`${month}-01T00:00:00`).getTime();
 	const end = new Date(new Date(`${month}-01T00:00:00`).setMonth(new Date(`${month}-01T00:00:00`).getMonth() + 1)).getTime();
 	const totals: Record<string, number> = {};
-	all.forEach((t: any) => {
+	all.forEach((t: Transaction) => {
 		if (t.type !== "expense") return;
 		if (t.date < start || t.date >= end) return;
 		totals[t.category] = (totals[t.category] || 0) + t.amount;
@@ -225,7 +225,7 @@ export async function listWalletHistory(userId: string, wallet?: WalletType) {
 		q = query(collection(db(), "walletHistory"), where("userId", "==", userId), where("wallet", "==", wallet));
 	}
 	const results = await getDocs(q);
-	const data = results.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+	const data = results.docs.map((d) => ({ id: d.id, ...d.data() })) as WalletHistory[];
 	// Sort by createdAt descending on client side
 	return data.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 }

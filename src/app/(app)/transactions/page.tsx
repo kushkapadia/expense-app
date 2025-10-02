@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/lib/auth";
-import { createTransaction, listTransactions, transferBetweenWallets, applyPreset, markSettlement, adjustWalletBalance } from "@/lib/db";
+import { createTransaction, listTransactions, markSettlement, adjustWalletBalance } from "@/lib/db";
 import type { WalletType } from "@/types/db";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
@@ -39,7 +39,7 @@ export default function TransactionsPage() {
 		},
 	});
 
-	const form = useForm<z.infer<typeof schema>>({
+	const form = useForm({
 		resolver: zodResolver(schema),
 		defaultValues: {
 			date: new Date().toISOString().slice(0, 10),
@@ -70,12 +70,6 @@ export default function TransactionsPage() {
 		refetch();
 	}
 
-	async function quickTransfer(from: WalletType, to: WalletType, amount: number) {
-		if (!user) return;
-		await transferBetweenWallets(user.uid, from, to, amount);
-		toast.success(`Transferred ₹${amount} ${from} → ${to}`);
-		refetch();
-	}
 
 	async function settle(txId: string, wallet: WalletType) {
 		if (!user) return;
@@ -148,9 +142,39 @@ export default function TransactionsPage() {
 						</div>
 					</form>
 					<div className="mt-3 flex flex-wrap gap-2">
-						<Button variant="outline" size="sm" onClick={() => user && applyPreset(user.uid, 60, "Metro", "cash").then(() => { toast.success("Added Metro"); refetch(); })}>🚇 Metro ₹60</Button>
-						<Button variant="outline" size="sm" onClick={() => user && applyPreset(user.uid, 40, "Coffee", "cash").then(() => { toast.success("Added Coffee"); refetch(); })}>☕ Coffee ₹40</Button>
-						<Button variant="outline" size="sm" onClick={() => user && applyPreset(user.uid, 200, "Fuel", "cash").then(() => { toast.success("Added Fuel"); refetch(); })}>🛵 Fuel ₹200</Button>
+						<Button variant="outline" size="sm" onClick={() => {
+							if (!user) return;
+							createTransaction(user.uid, {
+								date: new Date().getTime(),
+								amount: 60,
+								category: "Metro",
+								wallet: "cash",
+								type: "expense",
+								notes: "Quick add: Metro"
+							}).then(() => { toast.success("Added Metro"); refetch(); });
+						}}>🚇 Metro ₹60</Button>
+						<Button variant="outline" size="sm" onClick={() => {
+							if (!user) return;
+							createTransaction(user.uid, {
+								date: new Date().getTime(),
+								amount: 40,
+								category: "Coffee",
+								wallet: "cash",
+								type: "expense",
+								notes: "Quick add: Coffee"
+							}).then(() => { toast.success("Added Coffee"); refetch(); });
+						}}>☕ Coffee ₹40</Button>
+						<Button variant="outline" size="sm" onClick={() => {
+							if (!user) return;
+							createTransaction(user.uid, {
+								date: new Date().getTime(),
+								amount: 200,
+								category: "Fuel",
+								wallet: "cash",
+								type: "expense",
+								notes: "Quick add: Fuel"
+							}).then(() => { toast.success("Added Fuel"); refetch(); });
+						}}>🛵 Fuel ₹200</Button>
 					</div>
 				</CardContent>
 			</Card>

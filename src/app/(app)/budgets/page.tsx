@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { AlertTriangle } from "lucide-react";
 import { useAuth } from "@/lib/auth";
-import { listBudgets, upsertBudget, listTransactions, ensureBudgetsForMonth } from "@/lib/db";
+import { upsertBudget, listTransactions, ensureBudgetsForMonth } from "@/lib/db";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useRef } from "react";
 import { toast } from "sonner";
@@ -22,7 +22,7 @@ export default function BudgetsPage() {
 		queryKey: ["budgets", user?.uid, month],
 		enabled: !!user,
 		queryFn: async () => {
-			if (!user) return [] as any[];
+			if (!user) return [];
 			return await ensureBudgetsForMonth(user.uid, month);
 		},
 	});
@@ -30,7 +30,7 @@ export default function BudgetsPage() {
 		queryKey: ["tx-all", user?.uid],
 		enabled: !!user,
 		queryFn: async () => {
-			if (!user) return [] as any[];
+			if (!user) return [];
 			return await listTransactions(user.uid);
 		},
 	});
@@ -39,7 +39,7 @@ export default function BudgetsPage() {
 		const start = new Date(`${month}-01T00:00:00`).getTime();
 		const end = new Date(new Date(`${month}-01T00:00:00`).setMonth(new Date(`${month}-01T00:00:00`).getMonth() + 1)).getTime();
 		const totals: Record<string, number> = {};
-		(allTx || []).forEach((t: any) => {
+		(allTx || []).forEach((t: { type: string; date: number; category: string; amount: number }) => {
 			if (t.type !== "expense") return;
 			if (t.date < start || t.date >= end) return;
 			totals[t.category] = (totals[t.category] || 0) + t.amount;
@@ -80,7 +80,7 @@ export default function BudgetsPage() {
 					</div>
 
 					<div className="space-y-3 pt-2">
-						{(budgets || []).map((b: any) => {
+						{(budgets || []).map((b: { id: string; category: string; limit: number }) => {
 							const spent = monthTotals[b.category] || 0;
 							const pct = b.limit ? Math.min(100, Math.round((spent / b.limit) * 100)) : 0;
 							const isOverLimit = spent > b.limit;

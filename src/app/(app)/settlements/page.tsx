@@ -66,7 +66,7 @@ export default function SettlementsPage() {
 					))}
 					{(data || []).length === 0 && (
 						<div className="text-muted-foreground text-sm">
-							No pending settlements. Create one from <Link className="underline" href="/transactions">Transactions</Link> by checking "Paid for someone else".
+							No pending settlements. Create one from <Link className="underline" href="/transactions">Transactions</Link> by checking &quot;Paid for someone else&quot;.
 						</div>
 					)}
 				</CardContent>
