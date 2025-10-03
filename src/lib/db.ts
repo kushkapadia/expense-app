@@ -1,5 +1,5 @@
 import { getFirestoreDb } from "@/lib/firebase";
-import { addDoc, collection, doc, getDoc, getDocs, increment, limit, orderBy, query, setDoc, updateDoc, where } from "firebase/firestore";
+import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, increment, limit, orderBy, query, setDoc, updateDoc, where } from "firebase/firestore";
 import type { Transaction, Wallet, WalletType, Budget, Preset, WalletHistory } from "@/types/db";
 
 const db = () => getFirestoreDb();
@@ -62,6 +62,62 @@ export async function createTransaction(userId: string, tx: Omit<Transaction, "i
 	}
 	
 	return ref.id;
+}
+
+// Updates a transaction and safely adjusts wallet balances based on the delta
+export async function updateTransaction(userId: string, txId: string, updates: Partial<Transaction>) {
+    const ref = doc(db(), "transactions", txId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) throw new Error("Transaction not found");
+    const prev = snap.data() as Transaction;
+
+    // Reverse previous balance effects
+    if (prev.type === "expense") {
+        await adjustWalletBalance(userId, prev.wallet, prev.amount); // add back
+    } else if (prev.type === "income") {
+        await adjustWalletBalance(userId, prev.wallet, -prev.amount); // remove income
+    } else if (prev.type === "transfer" && prev.fromWallet && prev.toWallet) {
+        await adjustWalletBalance(userId, prev.fromWallet, prev.amount); // add back to from
+        await adjustWalletBalance(userId, prev.toWallet, -prev.amount); // remove from to
+    }
+
+    // Apply updates
+    const next: Transaction = { ...prev, ...updates, updatedAt: Date.now() } as Transaction;
+    await updateDoc(ref, { ...updates, updatedAt: Date.now() });
+
+    // Apply new balance effects
+    if (next.type === "expense") {
+        await adjustWalletBalance(userId, next.wallet, -next.amount);
+    } else if (next.type === "income") {
+        await adjustWalletBalance(userId, next.wallet, next.amount);
+    } else if (next.type === "transfer" && next.fromWallet && next.toWallet) {
+        await adjustWalletBalance(userId, next.fromWallet, -next.amount);
+        await adjustWalletBalance(userId, next.toWallet, next.amount);
+    }
+}
+
+// Deletes a transaction and reverts wallet impacts
+export async function deleteTransaction(userId: string, txId: string) {
+    const ref = doc(db(), "transactions", txId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return;
+    const t = snap.data() as Transaction;
+
+    // Revert impacts
+    if (t.type === "expense") {
+        await adjustWalletBalance(userId, t.wallet, t.amount);
+    } else if (t.type === "income") {
+        await adjustWalletBalance(userId, t.wallet, -t.amount);
+    } else if (t.type === "transfer" && t.fromWallet && t.toWallet) {
+        await adjustWalletBalance(userId, t.fromWallet, t.amount);
+        await adjustWalletBalance(userId, t.toWallet, -t.amount);
+    }
+    // If settlement was marked and credited to a wallet, attempt to reverse using settledWallet if present
+    if (t.isSettlement && t.settled && (t as any).settledWallet) {
+        await adjustWalletBalance(userId, (t as any).settledWallet as WalletType, -t.amount);
+    }
+
+    await deleteDoc(ref);
 }
 
 export async function adjustWalletBalance(userId: string, wallet: WalletType, delta: number, reason?: string) {
@@ -164,6 +220,17 @@ export async function ensureBudgetsForMonth(userId: string, month: string) {
 	return await listBudgets(userId, month);
 }
 
+export async function updateBudget(userId: string, month: string, category: string, updates: Partial<Budget>) {
+    const id = `${userId}_${month}_${category}`;
+    const ref = doc(db(), "budgets", id);
+    await updateDoc(ref, { ...updates, updatedAt: Date.now() });
+}
+
+export async function deleteBudget(userId: string, month: string, category: string) {
+    const id = `${userId}_${month}_${category}`;
+    await deleteDoc(doc(db(), "budgets", id));
+}
+
 // Presets
 export interface PresetInput { emoji: string; label: string; amount: number; category: string; wallet: WalletType }
 export async function createPresetDoc(userId: string, p: PresetInput) {
@@ -175,13 +242,22 @@ export async function listPresets(userId: string) {
 	return res.docs.map((d) => ({ id: d.id, ...d.data() })) as Preset[];
 }
 
+export async function updatePreset(presetId: string, updates: Partial<Preset>) {
+    const ref = doc(db(), "presets", presetId);
+    await updateDoc(ref, { ...updates, updatedAt: Date.now() });
+}
+
+export async function deletePreset(presetId: string) {
+    await deleteDoc(doc(db(), "presets", presetId));
+}
+
 // Settlements
 export async function markPaidForSomeone(userId: string, tx: Omit<Transaction, "id" | "userId" | "createdAt" | "updatedAt">) {
 	await createTransaction(userId, { ...tx, isSettlement: true, settled: false });
 }
-export async function markSettlement(userId: string, txId: string) {
-	const ref = doc(db(), "transactions", txId);
-	await updateDoc(ref, { settled: true, updatedAt: Date.now() });
+export async function markSettlement(userId: string, txId: string, wallet?: WalletType) {
+    const ref = doc(db(), "transactions", txId);
+    await updateDoc(ref, { settled: true, updatedAt: Date.now(), ...(wallet ? { settledWallet: wallet } : {}) });
 }
 
 // Income & Investment

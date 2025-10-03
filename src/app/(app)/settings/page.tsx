@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/lib/auth";
-import { createPresetDoc, listPresets, applyPreset } from "@/lib/db";
+import { createPresetDoc, listPresets, applyPreset, updatePreset, deletePreset } from "@/lib/db";
 import { useQuery } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
@@ -92,13 +92,29 @@ export default function SettingsPage() {
 						<div className="text-xs text-muted-foreground mb-2">
 							Debug: {presets?.length || 0} presets found
 						</div>
-						{(presets || []).map((p: any) => (
+                        {(presets || []).map((p: any) => (
 							<Dialog key={p.id} open={openModals[p.id] || false} onOpenChange={(open) => setOpenModals(prev => ({ ...prev, [p.id]: open }))}>
 								<DialogTrigger asChild>
 									<div className="flex items-center justify-between text-sm py-2 border-b last:border-b-0 cursor-pointer hover:bg-gray-50 rounded p-2">
 										<div className="text-muted-foreground">
 											{p.emoji} {p.label} • ₹{p.amount} • {p.category} • {p.wallet}
 										</div>
+                                        <div className="flex gap-2">
+                                            <Button variant="outline" size="sm" onClick={async (e) => {
+                                                e.stopPropagation();
+                                                const nextLabel = prompt("Label", p.label) || p.label;
+                                                const nextAmount = Number(prompt("Amount", String(p.amount)) || p.amount);
+                                                await updatePreset(p.id, { label: nextLabel, amount: nextAmount });
+                                                toast.success("Preset updated");
+                                                refetch();
+                                            }}>Edit</Button>
+                                            <Button variant="destructive" size="sm" onClick={async (e) => {
+                                                e.stopPropagation();
+                                                await deletePreset(p.id);
+                                                toast.success("Preset deleted");
+                                                refetch();
+                                            }}>Delete</Button>
+                                        </div>
 									</div>
 								</DialogTrigger>
 								<DialogContent>

@@ -212,7 +212,7 @@ export default function DashboardPage() {
 									{(recentList || []).map((t: any) => (
 										<div key={t.id ?? t.createdAt} className="flex items-center justify-between py-2 text-sm">
 											<div>
-												<div className="font-medium">{t.category} • {t.type}</div>
+											<div className="font-medium">{t.category} {t.item ? `• ${t.item}` : ""} • {t.type}</div>
 												<div className="text-muted-foreground">{new Date(t.date).toLocaleDateString()} • {t.wallet}</div>
 											</div>
 											<div className={t.type === "income" ? "text-green-600" : t.type === "expense" ? "text-red-600" : ""}>₹{t.amount}</div>

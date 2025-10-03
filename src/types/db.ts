@@ -17,6 +17,7 @@ export interface Transaction {
 	date: number; // epoch ms
 	amount: number; // positive, we derive sign from type
 	category: string;
+	item?: string;
 	wallet: WalletType; // primary wallet impacted
 	type: TransactionType; // expense/income/transfer
 	notes?: string;

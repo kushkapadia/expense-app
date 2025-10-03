@@ -9,17 +9,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/lib/auth";
-import { createTransaction, listTransactions, markSettlement, adjustWalletBalance } from "@/lib/db";
+import { createTransaction, listTransactions, markSettlement, adjustWalletBalance, updateTransaction, deleteTransaction } from "@/lib/db";
 import type { WalletType } from "@/types/db";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input as UITextInput } from "@/components/ui/input";
+import { Label as UILabel } from "@/components/ui/label";
 
 const schema = z.object({
 	date: z.string(),
 	amount: z.coerce.number().positive(),
 	category: z.string().min(1),
+	item: z.string().min(1, { message: "Item is required" }),
 	wallet: z.enum(["cash", "gpay", "investment"] as const),
 	type: z.enum(["expense", "income", "transfer"] as const),
 	notes: z.string().optional(),
@@ -30,6 +33,7 @@ export default function TransactionsPage() {
 	const { user } = useAuth();
 	const [walletFilter, setWalletFilter] = useState<WalletType | "all">("all");
 	const [typeFilter, setTypeFilter] = useState<"all" | "expense" | "income" | "transfer">("all");
+	const [openEditModals, setOpenEditModals] = useState<Record<string, boolean>>({});
 	const { data: recent, refetch } = useQuery({
 		queryKey: ["all-transactions", user?.uid],
 		enabled: !!user,
@@ -45,6 +49,7 @@ export default function TransactionsPage() {
 			date: new Date().toISOString().slice(0, 10),
 			amount: 0,
 			category: "",
+			item: "",
 			wallet: "cash",
 			type: "expense",
 			notes: "",
@@ -58,6 +63,7 @@ export default function TransactionsPage() {
 			date: new Date(values.date).getTime(),
 			amount: values.amount,
 			category: values.category,
+		item: values.item,
 			wallet: values.wallet as WalletType,
 			type: values.type,
 			notes: values.notes,
@@ -107,6 +113,10 @@ export default function TransactionsPage() {
 							<Label>Category</Label>
 							<Input {...form.register("category")} placeholder="Food, Travel..." />
 						</div>
+		<div>
+			<Label>Item</Label>
+			<Input {...form.register("item")} placeholder="e.g., Coffee, Bus Ticket" />
+		</div>
 						<div>
 							<Label>Wallet</Label>
 							<Select defaultValue={form.getValues("wallet")} onValueChange={(v) => form.setValue("wallet", v as any)}>
@@ -208,12 +218,51 @@ export default function TransactionsPage() {
 						{filtered.map((t: any) => (
 							<div key={t.id ?? t.createdAt} className="flex items-center justify-between py-2 text-sm">
 								<div>
-									<div className="font-medium">{t.category} • {t.type}</div>
+								<div className="font-medium">{t.category} {t.item ? `• ${t.item}` : ""} • {t.type}</div>
 									<div className="text-muted-foreground">{new Date(t.date).toLocaleDateString()} • {t.wallet}</div>
 									{t.notes && <div className="text-muted-foreground text-xs">{t.notes}</div>}
 								</div>
 								<div className="flex items-center gap-2">
 									<div className={t.type === "income" ? "text-green-600" : t.type === "expense" ? "text-red-600" : ""}>₹{t.amount}</div>
+									{/* Edit */}
+									<Dialog open={openEditModals[t.id] || false} onOpenChange={(open) => setOpenEditModals(prev => ({ ...prev, [t.id]: open }))}>
+										<DialogTrigger asChild>
+											<Button variant="outline" size="sm">Edit</Button>
+										</DialogTrigger>
+										<DialogContent>
+											<DialogHeader>
+												<DialogTitle>Edit transaction</DialogTitle>
+											</DialogHeader>
+											<div className="grid gap-3">
+												<UILabel>Amount</UILabel>
+												<UITextInput defaultValue={t.amount} type="number" id={`amt-${t.id}`} />
+												<UILabel>Category</UILabel>
+												<UITextInput defaultValue={t.category} id={`cat-${t.id}`} />
+												<UILabel>Item</UILabel>
+												<UITextInput defaultValue={t.item || ""} id={`itm-${t.id}`} />
+												<UILabel>Notes</UILabel>
+												<UITextInput defaultValue={t.notes || ""} id={`note-${t.id}`} />
+												<Button onClick={async () => {
+													if (!user) return;
+													const amt = Number((document.getElementById(`amt-${t.id}`) as HTMLInputElement)?.value || t.amount);
+													const cat = (document.getElementById(`cat-${t.id}`) as HTMLInputElement)?.value || t.category;
+													const itm = (document.getElementById(`itm-${t.id}`) as HTMLInputElement)?.value || t.item;
+													const note = (document.getElementById(`note-${t.id}`) as HTMLInputElement)?.value || t.notes;
+													await updateTransaction(user.uid, t.id, { amount: amt, category: cat, item: itm, notes: note });
+													toast.success("Transaction updated");
+													setOpenEditModals(prev => ({ ...prev, [t.id]: false }));
+													refetch();
+												}}>Save</Button>
+											</div>
+										</DialogContent>
+									</Dialog>
+									{/* Delete */}
+									<Button variant="destructive" size="sm" onClick={async () => {
+										if (!user) return;
+										await deleteTransaction(user.uid, t.id);
+										toast.success("Transaction deleted");
+										refetch();
+									}}>Delete</Button>
 									{t.isSettlement && !t.settled && (
 										<Dialog>
 											<DialogTrigger asChild>

@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { AlertTriangle } from "lucide-react";
 import { useAuth } from "@/lib/auth";
-import { upsertBudget, listTransactions, ensureBudgetsForMonth } from "@/lib/db";
+import { upsertBudget, listTransactions, ensureBudgetsForMonth, updateBudget, deleteBudget } from "@/lib/db";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useRef } from "react";
 import { toast } from "sonner";
@@ -86,11 +86,20 @@ export default function BudgetsPage() {
 							const isOverLimit = spent > b.limit;
 							return (
 								<div key={b.id} className={isOverLimit ? "border border-red-200 rounded p-2 bg-red-50" : ""}>
-									<div className="flex justify-between text-sm mb-1">
+								<div className="flex justify-between text-sm mb-1">
 										<span className={isOverLimit ? "text-red-600 font-medium" : ""}>{b.category}</span>
-										<div className="flex items-center gap-1">
+									<div className="flex items-center gap-2">
 											{isOverLimit && <AlertTriangle size={14} className="text-red-600" />}
 											<span className={isOverLimit ? "text-red-600 font-medium" : ""}>₹{spent} / ₹{b.limit}</span>
+										<Button variant="outline" size="sm" onClick={async () => {
+											const newLimit = Number(prompt("New limit", String(b.limit)) || b.limit);
+											if (!user) return; await updateBudget(user.uid, month, b.category, { limit: newLimit }); toast.success("Budget updated");
+										}}>
+											Edit
+										</Button>
+										<Button variant="destructive" size="sm" onClick={async () => { if (!user) return; await deleteBudget(user.uid, month, b.category); toast.success("Budget deleted"); }}>
+											Delete
+										</Button>
 										</div>
 									</div>
 									<Progress value={pct} className={isOverLimit ? "[&>div]:bg-red-500" : ""} />
