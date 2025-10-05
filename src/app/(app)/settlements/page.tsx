@@ -11,11 +11,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import type { WalletType, GroupSettlement } from "@/types/db";
 import { useState } from "react";
 import { getUserDisplayNameById, getUserDisplayName } from "@/lib/user-utils";
+import { ConfirmationModal } from "@/components/confirmation-modal";
 
 export default function SettlementsPage() {
 	const { user } = useAuth();
 	const [openEditModals, setOpenEditModals] = useState<Record<string, boolean>>({});
 	const [userNames, setUserNames] = useState<Record<string, string>>({});
+	const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; settlementId: string | null; settlementItem: string }>({
+		isOpen: false,
+		settlementId: null,
+		settlementItem: "",
+	});
 	const { data, refetch } = useQuery({
 		queryKey: ["settlements", user?.uid],
 		enabled: !!user,
@@ -131,7 +137,13 @@ export default function SettlementsPage() {
                                         </div>
                                     </DialogContent>
                                 </Dialog>
-                                <Button size="sm" variant="destructive" onClick={async () => { if (!user) return; await deleteTransaction(user.uid, t.id); toast.success("Settlement deleted"); refetch(); }}>Delete</Button>
+                                <Button size="sm" variant="destructive" onClick={() => {
+									setDeleteModal({
+										isOpen: true,
+										settlementId: t.id,
+										settlementItem: t.item || t.category,
+									});
+								}}>Delete</Button>
                             </div>
 						</div>
 					))}
@@ -191,6 +203,22 @@ export default function SettlementsPage() {
 					)}
 				</CardContent>
 			</Card>
+
+			{/* Delete Confirmation Modal */}
+			<ConfirmationModal
+				isOpen={deleteModal.isOpen}
+				onClose={() => setDeleteModal({ isOpen: false, settlementId: null, settlementItem: "" })}
+				onConfirm={async () => {
+					if (!user || !deleteModal.settlementId) return;
+					await deleteTransaction(user.uid, deleteModal.settlementId);
+					toast.success("Settlement deleted");
+					refetch();
+				}}
+				title="Delete Settlement"
+				description={`Are you sure you want to delete "${deleteModal.settlementItem}"? This action cannot be undone.`}
+				confirmText="Delete"
+				cancelText="Cancel"
+			/>
 		</div>
 	);
 }

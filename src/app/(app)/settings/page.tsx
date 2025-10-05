@@ -11,10 +11,16 @@ import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import type { WalletType } from "@/types/db";
+import { ConfirmationModal } from "@/components/confirmation-modal";
 
 export default function SettingsPage() {
 	const { user } = useAuth();
 	const [openModals, setOpenModals] = useState<Record<string, boolean>>({});
+	const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; presetId: string | null; presetLabel: string }>({
+		isOpen: false,
+		presetId: null,
+		presetLabel: "",
+	});
 	const emojiRef = useRef<HTMLInputElement>(null);
 	const labelRef = useRef<HTMLInputElement>(null);
 	const amountRef = useRef<HTMLInputElement>(null);
@@ -109,11 +115,13 @@ export default function SettingsPage() {
                                                 toast.success("Preset updated");
                                                 refetch();
                                             }}>Edit</Button>
-                                            <Button variant="destructive" size="sm" onClick={async (e) => {
+                                            <Button variant="destructive" size="sm" onClick={(e) => {
                                                 e.stopPropagation();
-                                                await deletePreset(p.id);
-                                                toast.success("Preset deleted");
-                                                refetch();
+                                                setDeleteModal({
+                                                    isOpen: true,
+                                                    presetId: p.id,
+                                                    presetLabel: p.label,
+                                                });
                                             }}>Delete</Button>
                                         </div>
 									</div>
@@ -133,6 +141,22 @@ export default function SettingsPage() {
 					</div>
 				</CardContent>
 			</Card>
+
+			{/* Delete Confirmation Modal */}
+			<ConfirmationModal
+				isOpen={deleteModal.isOpen}
+				onClose={() => setDeleteModal({ isOpen: false, presetId: null, presetLabel: "" })}
+				onConfirm={async () => {
+					if (!deleteModal.presetId) return;
+					await deletePreset(deleteModal.presetId);
+					toast.success("Preset deleted");
+					refetch();
+				}}
+				title="Delete Preset"
+				description={`Are you sure you want to delete the preset "${deleteModal.presetLabel}"? This action cannot be undone.`}
+				confirmText="Delete"
+				cancelText="Cancel"
+			/>
 		</div>
 	);
 }

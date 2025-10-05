@@ -9,14 +9,19 @@ import { AlertTriangle } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { upsertBudget, listTransactions, ensureBudgetsForMonth, updateBudget, deleteBudget } from "@/lib/db";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { ConfirmationModal } from "@/components/confirmation-modal";
 
 export default function BudgetsPage() {
 	const { user } = useAuth();
 	const month = new Date().toISOString().slice(0, 7);
 	const categoryRef = useRef<HTMLInputElement>(null);
 	const limitRef = useRef<HTMLInputElement>(null);
+	const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; budgetCategory: string | null }>({
+		isOpen: false,
+		budgetCategory: null,
+	});
 
 	const { data: budgets } = useQuery({
 		queryKey: ["budgets", user?.uid, month],
@@ -97,7 +102,12 @@ export default function BudgetsPage() {
 										}}>
 											Edit
 										</Button>
-										<Button variant="destructive" size="sm" onClick={async () => { if (!user) return; await deleteBudget(user.uid, month, b.category); toast.success("Budget deleted"); }}>
+										<Button variant="destructive" size="sm" onClick={() => {
+											setDeleteModal({
+												isOpen: true,
+												budgetCategory: b.category,
+											});
+										}}>
 											Delete
 										</Button>
 										</div>
@@ -120,6 +130,21 @@ export default function BudgetsPage() {
 					</div>
 				</CardContent>
 			</Card>
+
+			{/* Delete Confirmation Modal */}
+			<ConfirmationModal
+				isOpen={deleteModal.isOpen}
+				onClose={() => setDeleteModal({ isOpen: false, budgetCategory: null })}
+				onConfirm={async () => {
+					if (!user || !deleteModal.budgetCategory) return;
+					await deleteBudget(user.uid, month, deleteModal.budgetCategory);
+					toast.success("Budget deleted");
+				}}
+				title="Delete Budget"
+				description={`Are you sure you want to delete the budget for "${deleteModal.budgetCategory}"? This action cannot be undone.`}
+				confirmText="Delete"
+				cancelText="Cancel"
+			/>
 		</div>
 	);
 }

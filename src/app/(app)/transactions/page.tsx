@@ -17,6 +17,7 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input as UITextInput } from "@/components/ui/input";
 import { Label as UILabel } from "@/components/ui/label";
+import { ConfirmationModal } from "@/components/confirmation-modal";
 
 const schema = z.object({
 	date: z.string(),
@@ -34,6 +35,11 @@ export default function TransactionsPage() {
 	const [walletFilter, setWalletFilter] = useState<WalletType | "all">("all");
 	const [typeFilter, setTypeFilter] = useState<"all" | "expense" | "income" | "transfer">("all");
 	const [openEditModals, setOpenEditModals] = useState<Record<string, boolean>>({});
+	const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; transactionId: string | null; transactionItem: string }>({
+		isOpen: false,
+		transactionId: null,
+		transactionItem: "",
+	});
 	const { data: recent, refetch } = useQuery({
 		queryKey: ["all-transactions", user?.uid],
 		enabled: !!user,
@@ -257,11 +263,12 @@ export default function TransactionsPage() {
 										</DialogContent>
 									</Dialog>
 									{/* Delete */}
-									<Button variant="destructive" size="sm" onClick={async () => {
-										if (!user) return;
-										await deleteTransaction(user.uid, t.id);
-										toast.success("Transaction deleted");
-										refetch();
+									<Button variant="destructive" size="sm" onClick={() => {
+										setDeleteModal({
+											isOpen: true,
+											transactionId: t.id,
+											transactionItem: t.item || t.category,
+										});
 									}}>Delete</Button>
 									{t.isSettlement && !t.settled && (
 										<Dialog>
@@ -286,6 +293,22 @@ export default function TransactionsPage() {
 					</div>
 				</CardContent>
 			</Card>
+
+			{/* Delete Confirmation Modal */}
+			<ConfirmationModal
+				isOpen={deleteModal.isOpen}
+				onClose={() => setDeleteModal({ isOpen: false, transactionId: null, transactionItem: "" })}
+				onConfirm={async () => {
+					if (!user || !deleteModal.transactionId) return;
+					await deleteTransaction(user.uid, deleteModal.transactionId);
+					toast.success("Transaction deleted");
+					refetch();
+				}}
+				title="Delete Transaction"
+				description={`Are you sure you want to delete "${deleteModal.transactionItem}"? This action cannot be undone.`}
+				confirmText="Delete"
+				cancelText="Cancel"
+			/>
 		</div>
 	);
 }
