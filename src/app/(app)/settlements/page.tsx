@@ -10,7 +10,7 @@ import Link from "next/link";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import type { WalletType, GroupSettlement } from "@/types/db";
 import { useState } from "react";
-import { getUserDisplayNameById, getUserDisplayName } from "@/lib/user-utils";
+import { getUserDisplayNameById } from "@/lib/user-utils";
 import { ConfirmationModal } from "@/components/confirmation-modal";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { useLoading } from "@/hooks/use-loading";
@@ -78,7 +78,7 @@ export default function SettlementsPage() {
 		refetch();
 	}
 
-	async function settleGroup(settlementId: string, wallet: WalletType) {
+	async function settleGroup(settlementId: string, wallet: "cash" | "gpay") {
 		if (!user) return;
 		await markSettlementComplete(settlementId, wallet);
 		toast.success(`Group settlement completed via ${wallet}`);

@@ -1,6 +1,6 @@
 "use client";
 
-import { WifiOff, Wifi } from "lucide-react";
+import { WifiOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface OfflineIndicatorProps {
@@ -18,7 +18,7 @@ export function OfflineIndicator({ isOffline, className }: OfflineIndicatorProps
       className
     )}>
       <WifiOff className="h-4 w-4" />
-      <span>You're offline - Changes will sync when connection is restored</span>
+      <span>You&apos;re offline - Changes will sync when connection is restored</span>
     </div>
   );
 }

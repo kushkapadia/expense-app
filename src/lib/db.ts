@@ -1,6 +1,6 @@
 import { getFirestoreDb } from "@/lib/firebase";
 import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, increment, limit, orderBy, query, setDoc, updateDoc, where } from "firebase/firestore";
-import type { Transaction, Wallet, WalletType, Budget, Preset, WalletHistory, ExpenseGroup, GroupInvitation, GroupExpense, GroupExpenseSplit, GroupSettlement, UserName } from "@/types/db";
+import type { Transaction, Wallet, WalletType, Budget, Preset, WalletHistory, ExpenseGroup, GroupExpense, GroupExpenseSplit, GroupSettlement, UserName } from "@/types/db";
 
 const db = () => getFirestoreDb();
 

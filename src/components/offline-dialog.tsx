@@ -9,7 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { WifiOff, Wifi } from "lucide-react";
+import { WifiOff } from "lucide-react";
 
 interface OfflineDialogProps {
   isOpen: boolean;
@@ -29,7 +29,7 @@ export function OfflineDialog({ isOpen, onClose, isOffline }: OfflineDialogProps
               <WifiOff className="h-5 w-5 text-orange-600" />
             </div>
             <div>
-              <DialogTitle className="text-left">You're Offline</DialogTitle>
+              <DialogTitle className="text-left">You&apos;re Offline</DialogTitle>
               <DialogDescription className="text-left mt-1">
                 No internet connection detected
               </DialogDescription>
@@ -41,9 +41,9 @@ export function OfflineDialog({ isOpen, onClose, isOffline }: OfflineDialogProps
           <div className="text-sm text-muted-foreground">
             <p className="mb-2">You can still use the app, but:</p>
             <ul className="list-disc list-inside space-y-1 ml-2">
-              <li>Your changes won't sync to the cloud</li>
+              <li>Your changes won&apos;t sync to the cloud</li>
               <li>New data will be saved locally</li>
-              <li>Everything will sync when you're back online</li>
+              <li>Everything will sync when you&apos;re back online</li>
             </ul>
           </div>
           

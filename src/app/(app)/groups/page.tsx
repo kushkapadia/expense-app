@@ -14,9 +14,9 @@ import { toast } from "sonner";
 import { 
 	createExpenseGroup, 
 	getUserExpenseGroups, 
-	joinExpenseGroup,
-	ExpenseGroup 
+	joinExpenseGroup
 } from "@/lib/db";
+import type { ExpenseGroup } from "@/types/db";
 import { getUserDisplayName } from "@/lib/user-utils";
 
 export default function GroupsPage() {
@@ -55,7 +55,7 @@ export default function GroupsPage() {
 		if (!user || !groupName.trim()) return;
 		
 		try {
-			const groupId = await createExpenseGroup(user.uid, groupName.trim(), groupDescription.trim() || undefined);
+			await createExpenseGroup(user.uid, groupName.trim(), groupDescription.trim() || undefined);
 			toast.success("Group created successfully!");
 			setCreateDialogOpen(false);
 			setGroupName("");

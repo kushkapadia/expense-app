@@ -3,12 +3,12 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -46,7 +46,6 @@ export default function GroupPage() {
 	const [expenseAmount, setExpenseAmount] = useState("");
 	const [expenseDescription, setExpenseDescription] = useState("");
 	const [expenseCategory, setExpenseCategory] = useState("");
-	const [splitType, setSplitType] = useState<"equal" | "custom">("equal");
 	const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
 	const [expenseWallet, setExpenseWallet] = useState<"cash" | "gpay">("cash");
 
@@ -149,7 +148,6 @@ export default function GroupPage() {
 				amount,
 				description: expenseDescription,
 				category: expenseCategory,
-				splitType: "equal",
 				splitDetails,
 				wallet: expenseWallet
 			});
@@ -226,7 +224,6 @@ export default function GroupPage() {
 		setExpenseAmount("");
 		setExpenseDescription("");
 		setExpenseCategory("");
-		setSplitType("equal");
 		setExpenseWallet("cash");
 		if (group) {
 			setSelectedMembers([...group.memberIds]);
@@ -307,10 +304,10 @@ export default function GroupPage() {
 						<Users className="w-12 h-12 text-muted-foreground mb-4" />
 						<h3 className="text-lg font-semibold mb-2">Group not found</h3>
 						<p className="text-muted-foreground text-center mb-4">
-							The group you're looking for doesn't exist or you don't have access to it.
+							The group you&apos;re looking for doesn&apos;t exist or you don&apos;t have access to it.
 						</p>
 						<Button asChild>
-							<a href="/groups">Back to Groups</a>
+							<Link href="/groups">Back to Groups</Link>
 						</Button>
 					</CardContent>
 				</Card>
@@ -324,10 +321,10 @@ export default function GroupPage() {
 			<div className="flex items-center justify-between mb-6">
 				<div className="flex items-center gap-4">
 					<Button variant="ghost" size="sm" asChild>
-						<a href="/groups">
+						<Link href="/groups">
 							<ArrowLeft className="w-4 h-4 mr-2" />
 							Back
-						</a>
+						</Link>
 					</Button>
 					<div>
 						<h1 className="text-3xl font-bold">{group.name}</h1>
@@ -389,18 +386,6 @@ export default function GroupPage() {
 										<SelectItem value="shopping">Shopping</SelectItem>
 										<SelectItem value="utilities">Utilities</SelectItem>
 										<SelectItem value="other">Other</SelectItem>
-									</SelectContent>
-								</Select>
-							</div>
-							{/* Split Type - Hidden for now, defaulting to equal split */}
-							<div className="hidden">
-								<Label htmlFor="splitType">Split Type</Label>
-								<Select value="equal" onValueChange={() => {}}>
-									<SelectTrigger>
-										<SelectValue />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value="equal">Equal Split</SelectItem>
 									</SelectContent>
 								</Select>
 							</div>

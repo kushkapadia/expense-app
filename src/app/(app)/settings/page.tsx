@@ -14,9 +14,11 @@ import type { WalletType } from "@/types/db";
 import { ConfirmationModal } from "@/components/confirmation-modal";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { useLoading } from "@/hooks/use-loading";
+import { LogOut } from "lucide-react";
+import Image from "next/image";
 
 export default function SettingsPage() {
-	const { user } = useAuth();
+	const { user, signOut } = useAuth();
 	const { isLoading, withLoading } = useLoading();
 	const [openModals, setOpenModals] = useState<Record<string, boolean>>({});
 	const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; presetId: string | null; presetLabel: string }>({
@@ -176,6 +178,77 @@ export default function SettingsPage() {
 							</Dialog>
 						))}
 						{(presets || []).length === 0 && <div className="text-muted-foreground text-sm">No presets yet</div>}
+					</div>
+				</CardContent>
+			</Card>
+
+			{/* Account Settings */}
+			<Card>
+				<CardHeader>
+					<CardTitle>Account</CardTitle>
+				</CardHeader>
+				<CardContent>
+					<div className="space-y-4">
+						{/* Profile Information */}
+						<div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
+							{user?.photoURL ? (
+								<Image 
+									src={user.photoURL} 
+									alt="Profile" 
+									width={48}
+									height={48}
+									className="w-12 h-12 rounded-full border-2 border-background object-cover"
+									onError={(e) => {
+										// Hide the image and show fallback if it fails to load
+										e.currentTarget.style.display = 'none';
+										const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+										if (fallback) fallback.style.display = 'flex';
+									}}
+								/>
+							) : null}
+							<div 
+								className={`w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center border-2 border-background ${user?.photoURL ? 'hidden' : 'flex'}`}
+							>
+								<span className="text-lg font-semibold text-primary">
+									{user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'U'}
+								</span>
+							</div>
+							<div className="flex-1">
+								<div className="font-semibold text-lg">
+									{user?.displayName || 'User'}
+								</div>
+								<div className="text-sm text-muted-foreground">
+									{user?.email}
+								</div>
+								{user?.emailVerified && (
+									<div className="text-xs text-green-600 mt-1 flex items-center gap-1">
+										<span className="w-2 h-2 bg-green-500 rounded-full"></span>
+										Email verified
+									</div>
+								)}
+							</div>
+						</div>
+
+						{/* Sign Out */}
+						<div className="flex items-center justify-between pt-2 border-t">
+							<div>
+								<div className="font-medium">Sign Out</div>
+								<div className="text-sm text-muted-foreground">
+									Sign out of your account
+								</div>
+							</div>
+							<Button 
+								variant="outline" 
+								onClick={() => {
+									signOut();
+									toast.success("Logged out successfully");
+								}}
+								className="flex items-center gap-2"
+							>
+								<LogOut size={16} />
+								Sign Out
+							</Button>
+						</div>
 					</div>
 				</CardContent>
 			</Card>

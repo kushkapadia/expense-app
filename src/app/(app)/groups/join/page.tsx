@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth";
 import { useSearchParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -105,7 +106,7 @@ export default function JoinGroupPage() {
 								</p>
 								{groupName && (
 									<p className="text-sm text-green-600 dark:text-green-300">
-										Welcome to "{groupName}"
+										Welcome to &quot;{groupName}&quot;
 									</p>
 								)}
 								<p className="text-sm text-green-600 dark:text-green-300">
@@ -158,7 +159,7 @@ export default function JoinGroupPage() {
 
 					<div className="text-center">
 						<Button variant="link" asChild>
-							<a href="/groups">Back to Groups</a>
+							<Link href="/groups">Back to Groups</Link>
 						</Button>
 					</div>
 				</CardContent>

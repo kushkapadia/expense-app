@@ -5,8 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, ReceiptText, Target, Handshake, Settings, BarChart3, History, LogOut, Users, Wifi, WifiOff } from "lucide-react";
-import { toast } from "sonner";
+import { Home, ReceiptText, Target, Handshake, Settings, BarChart3, History, Users, Wifi, WifiOff } from "lucide-react";
 import { useOffline } from "@/hooks/use-offline";
 
 const links = [
@@ -21,7 +20,7 @@ const links = [
 ];
 
 export default function NavBar() {
-	const { user, signOut } = useAuth();
+	const { user } = useAuth();
 	const { isOffline } = useOffline();
 	const pathname = usePathname();
 	return (
@@ -51,15 +50,7 @@ export default function NavBar() {
 							)}
 						</div>
 						<ThemeToggle />
-						{user ? (
-							<Button variant="outline" size="sm" onClick={() => {
-								signOut();
-								toast.success("Logged out successfully");
-							}} className="flex items-center gap-2">
-								<LogOut size={16} />
-								Sign out
-							</Button>
-						) : (
+						{!user && (
 							<Button asChild size="sm"><Link href="/login">Login</Link></Button>
 						)}
 					</div>
@@ -92,18 +83,6 @@ export default function NavBar() {
 							</Link>
 						);
 					})}
-					<button 
-						onClick={() => {
-							signOut();
-							toast.success("Logged out successfully");
-						}} 
-						className="py-2 text-center flex flex-col items-center gap-1 text-muted-foreground"
-					>
-						<div className="p-1.5 rounded-lg">
-							<LogOut size={16} />
-						</div>
-						<span className="font-medium">Logout</span>
-					</button>
 				</div>
 			</nav>
 		</>
