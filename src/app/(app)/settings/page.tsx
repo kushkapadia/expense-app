@@ -12,9 +12,12 @@ import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import type { WalletType } from "@/types/db";
 import { ConfirmationModal } from "@/components/confirmation-modal";
+import { LoadingButton } from "@/components/ui/loading-button";
+import { useLoading } from "@/hooks/use-loading";
 
 export default function SettingsPage() {
 	const { user } = useAuth();
+	const { isLoading, withLoading } = useLoading();
 	const [openModals, setOpenModals] = useState<Record<string, boolean>>({});
 	const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; presetId: string | null; presetLabel: string }>({
 		isOpen: false,
@@ -45,25 +48,32 @@ export default function SettingsPage() {
 		const category = categoryRef.current?.value || "";
 		const wallet = (walletRef.current?.value || "cash") as any;
 		if (!label || !amount || !category) return;
-		await createPresetDoc(user.uid, { emoji, label, amount, category, wallet });
-		toast.success("Preset created");
-		emojiRef.current!.value = "";
-		labelRef.current!.value = "";
-		amountRef.current!.value = "";
-		categoryRef.current!.value = "";
-		walletRef.current!.value = "";
-		refetch();
+		await withLoading("add-preset", async () => {
+			await createPresetDoc(user.uid, { emoji, label, amount, category, wallet });
+			toast.success("Preset created");
+			emojiRef.current!.value = "";
+			labelRef.current!.value = "";
+			amountRef.current!.value = "";
+			categoryRef.current!.value = "";
+			walletRef.current!.value = "";
+			refetch();
+		});
 	}
 
 	async function previewPreset(presetId: string, wallet: WalletType) {
 		if (!user) return;
-		await applyPreset(user.uid, presetId, wallet);
-		toast.success(`Applied preset via ${wallet}`);
-		setOpenModals(prev => ({ ...prev, [presetId]: false }));
+		await withLoading(`apply-preset-${presetId}`, async () => {
+			await applyPreset(user.uid, presetId, wallet);
+			toast.success(`Applied preset via ${wallet}`);
+			setOpenModals(prev => ({ ...prev, [presetId]: false }));
+		});
 	}
 
 	return (
 		<div className="container mx-auto max-w-3xl py-6 space-y-6">
+			{/* Offline Test Component - Remove this in production */}
+			<OfflineTest />
+			
 			<Card>
 				<CardHeader>
 					<CardTitle>Quick Presets</CardTitle>
@@ -91,7 +101,14 @@ export default function SettingsPage() {
 							<Input ref={walletRef} placeholder="cash | gpay | investment" />
 						</div>
 						<div className="sm:col-span-5">
-							<Button onClick={addPreset} className="w-full">Add Preset</Button>
+							<LoadingButton 
+								onClick={addPreset} 
+								className="w-full"
+								loading={isLoading("add-preset")}
+								loadingText="Adding..."
+							>
+								Add Preset
+							</LoadingButton>
 						</div>
 					</div>
 					<div className="space-y-2">
@@ -107,14 +124,24 @@ export default function SettingsPage() {
 											{p.emoji} {p.label} • ₹{p.amount} • {p.category} • {p.wallet}
 										</div>
                                         <div className="flex gap-2">
-                                            <Button variant="outline" size="sm" onClick={async (e) => {
-                                                e.stopPropagation();
-                                                const nextLabel = prompt("Label", p.label) || p.label;
-                                                const nextAmount = Number(prompt("Amount", String(p.amount)) || p.amount);
-                                                await updatePreset(p.id, { label: nextLabel, amount: nextAmount });
-                                                toast.success("Preset updated");
-                                                refetch();
-                                            }}>Edit</Button>
+                                            <LoadingButton 
+                                                variant="outline" 
+                                                size="sm" 
+                                                loading={isLoading(`edit-preset-${p.id}`)}
+                                                loadingText="Updating..."
+                                                onClick={async (e: React.MouseEvent) => {
+                                                    e.stopPropagation();
+                                                    const nextLabel = prompt("Label", p.label) || p.label;
+                                                    const nextAmount = Number(prompt("Amount", String(p.amount)) || p.amount);
+                                                    await withLoading(`edit-preset-${p.id}`, async () => {
+                                                        await updatePreset(p.id, { label: nextLabel, amount: nextAmount });
+                                                        toast.success("Preset updated");
+                                                        refetch();
+                                                    });
+                                                }}
+                                            >
+                                                Edit
+                                            </LoadingButton>
                                             <Button variant="destructive" size="sm" onClick={(e) => {
                                                 e.stopPropagation();
                                                 setDeleteModal({
@@ -131,8 +158,22 @@ export default function SettingsPage() {
 										<DialogTitle>Apply preset via</DialogTitle>
 									</DialogHeader>
 									<div className="grid gap-3">
-										<Button onClick={() => previewPreset(p.id, "cash")} className="w-full">💵 Cash</Button>
-										<Button onClick={() => previewPreset(p.id, "gpay")} className="w-full">📲 GPay</Button>
+										<LoadingButton 
+											loading={isLoading(`apply-preset-${p.id}`)}
+											loadingText="Applying..."
+											onClick={() => previewPreset(p.id, "cash")} 
+											className="w-full"
+										>
+											💵 Cash
+										</LoadingButton>
+										<LoadingButton 
+											loading={isLoading(`apply-preset-${p.id}`)}
+											loadingText="Applying..."
+											onClick={() => previewPreset(p.id, "gpay")} 
+											className="w-full"
+										>
+											📲 GPay
+										</LoadingButton>
 									</div>
 								</DialogContent>
 							</Dialog>
@@ -148,14 +189,17 @@ export default function SettingsPage() {
 				onClose={() => setDeleteModal({ isOpen: false, presetId: null, presetLabel: "" })}
 				onConfirm={async () => {
 					if (!deleteModal.presetId) return;
-					await deletePreset(deleteModal.presetId);
-					toast.success("Preset deleted");
-					refetch();
+					await withLoading(`delete-preset-${deleteModal.presetId || ''}`, async () => {
+						await deletePreset(deleteModal.presetId!);
+						toast.success("Preset deleted");
+						refetch();
+					});
 				}}
 				title="Delete Preset"
 				description={`Are you sure you want to delete the preset "${deleteModal.presetLabel}"? This action cannot be undone.`}
 				confirmText="Delete"
 				cancelText="Cancel"
+				isLoading={isLoading(`delete-preset-${deleteModal.presetId || ''}`)}
 			/>
 		</div>
 	);

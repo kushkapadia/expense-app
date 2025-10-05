@@ -12,9 +12,12 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ConfirmationModal } from "@/components/confirmation-modal";
+import { LoadingButton } from "@/components/ui/loading-button";
+import { useLoading } from "@/hooks/use-loading";
 
 export default function BudgetsPage() {
 	const { user } = useAuth();
+	const { isLoading, withLoading } = useLoading();
 	const month = new Date().toISOString().slice(0, 7);
 	const categoryRef = useRef<HTMLInputElement>(null);
 	const limitRef = useRef<HTMLInputElement>(null);
@@ -57,10 +60,12 @@ export default function BudgetsPage() {
 		const category = categoryRef.current?.value?.trim();
 		const limit = Number(limitRef.current?.value || 0);
 		if (!category || !limit) return;
-		await upsertBudget(user.uid, { month, category, limit });
-		toast.success("Budget saved");
-		categoryRef.current!.value = "";
-		limitRef.current!.value = "";
+		await withLoading("add-budget", async () => {
+			await upsertBudget(user.uid, { month, category, limit });
+			toast.success("Budget saved");
+			categoryRef.current!.value = "";
+			limitRef.current!.value = "";
+		});
 	}
 
 	return (
@@ -80,7 +85,14 @@ export default function BudgetsPage() {
 							<Input ref={limitRef} type="number" placeholder="10000" />
 						</div>
 						<div className="sm:col-span-3">
-							<Button onClick={addBudget} className="w-full">Save Budget</Button>
+							<LoadingButton 
+								onClick={addBudget} 
+								className="w-full"
+								loading={isLoading("add-budget")}
+								loadingText="Saving..."
+							>
+								Save Budget
+							</LoadingButton>
 						</div>
 					</div>
 
@@ -96,12 +108,22 @@ export default function BudgetsPage() {
 									<div className="flex items-center gap-2">
 											{isOverLimit && <AlertTriangle size={14} className="text-red-600" />}
 											<span className={isOverLimit ? "text-red-600 font-medium" : ""}>₹{spent} / ₹{b.limit}</span>
-										<Button variant="outline" size="sm" onClick={async () => {
-											const newLimit = Number(prompt("New limit", String(b.limit)) || b.limit);
-											if (!user) return; await updateBudget(user.uid, month, b.category, { limit: newLimit }); toast.success("Budget updated");
-										}}>
+										<LoadingButton 
+											variant="outline" 
+											size="sm" 
+											loading={isLoading(`edit-budget-${b.category}`)}
+											loadingText="Updating..."
+											onClick={async () => {
+												const newLimit = Number(prompt("New limit", String(b.limit)) || b.limit);
+												if (!user) return; 
+												await withLoading(`edit-budget-${b.category}`, async () => {
+													await updateBudget(user.uid, month, b.category, { limit: newLimit }); 
+													toast.success("Budget updated");
+												});
+											}}
+										>
 											Edit
-										</Button>
+										</LoadingButton>
 										<Button variant="destructive" size="sm" onClick={() => {
 											setDeleteModal({
 												isOpen: true,
@@ -137,13 +159,16 @@ export default function BudgetsPage() {
 				onClose={() => setDeleteModal({ isOpen: false, budgetCategory: null })}
 				onConfirm={async () => {
 					if (!user || !deleteModal.budgetCategory) return;
-					await deleteBudget(user.uid, month, deleteModal.budgetCategory);
-					toast.success("Budget deleted");
+					await withLoading(`delete-budget-${deleteModal.budgetCategory || ''}`, async () => {
+						await deleteBudget(user.uid, month, deleteModal.budgetCategory!);
+						toast.success("Budget deleted");
+					});
 				}}
 				title="Delete Budget"
 				description={`Are you sure you want to delete the budget for "${deleteModal.budgetCategory}"? This action cannot be undone.`}
 				confirmText="Delete"
 				cancelText="Cancel"
+				isLoading={isLoading(`delete-budget-${deleteModal.budgetCategory || ''}`)}
 			/>
 		</div>
 	);

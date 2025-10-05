@@ -12,9 +12,12 @@ import type { WalletType, GroupSettlement } from "@/types/db";
 import { useState } from "react";
 import { getUserDisplayNameById, getUserDisplayName } from "@/lib/user-utils";
 import { ConfirmationModal } from "@/components/confirmation-modal";
+import { LoadingButton } from "@/components/ui/loading-button";
+import { useLoading } from "@/hooks/use-loading";
 
 export default function SettlementsPage() {
 	const { user } = useAuth();
+	const { isLoading, withLoading } = useLoading();
 	const [openEditModals, setOpenEditModals] = useState<Record<string, boolean>>({});
 	const [userNames, setUserNames] = useState<Record<string, string>>({});
 	const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; settlementId: string | null; settlementItem: string }>({
@@ -124,16 +127,24 @@ export default function SettlementsPage() {
                                             <input id={`s-amt-${t.id}`} defaultValue={t.amount} type="number" className="border rounded p-2" />
                                             <input id={`s-cat-${t.id}`} defaultValue={t.category} className="border rounded p-2" />
                                             <input id={`s-note-${t.id}`} defaultValue={t.notes || ""} className="border rounded p-2" />
-                                            <Button onClick={async () => {
-                                                if (!user) return;
-                                                const amt = Number((document.getElementById(`s-amt-${t.id}`) as HTMLInputElement)?.value || t.amount);
-                                                const cat = (document.getElementById(`s-cat-${t.id}`) as HTMLInputElement)?.value || t.category;
-                                                const note = (document.getElementById(`s-note-${t.id}`) as HTMLInputElement)?.value || t.notes;
-                                                await updateTransaction(user.uid, t.id, { amount: amt, category: cat, notes: note });
-                                                toast.success("Settlement updated");
-                                                setOpenEditModals(prev => ({ ...prev, [t.id]: false }));
-                                                refetch();
-                                            }}>Save</Button>
+                                            <LoadingButton 
+                                                loading={isLoading(`update-settlement-${t.id}`)}
+                                                loadingText="Saving..."
+                                                onClick={async () => {
+                                                    if (!user) return;
+                                                    await withLoading(`update-settlement-${t.id}`, async () => {
+                                                        const amt = Number((document.getElementById(`s-amt-${t.id}`) as HTMLInputElement)?.value || t.amount);
+                                                        const cat = (document.getElementById(`s-cat-${t.id}`) as HTMLInputElement)?.value || t.category;
+                                                        const note = (document.getElementById(`s-note-${t.id}`) as HTMLInputElement)?.value || t.notes;
+                                                        await updateTransaction(user.uid, t.id, { amount: amt, category: cat, notes: note });
+                                                        toast.success("Settlement updated");
+                                                        setOpenEditModals(prev => ({ ...prev, [t.id]: false }));
+                                                        refetch();
+                                                    });
+                                                }}
+                                            >
+                                                Save
+                                            </LoadingButton>
                                         </div>
                                     </DialogContent>
                                 </Dialog>
@@ -210,14 +221,17 @@ export default function SettlementsPage() {
 				onClose={() => setDeleteModal({ isOpen: false, settlementId: null, settlementItem: "" })}
 				onConfirm={async () => {
 					if (!user || !deleteModal.settlementId) return;
-					await deleteTransaction(user.uid, deleteModal.settlementId);
-					toast.success("Settlement deleted");
-					refetch();
+					await withLoading(`delete-settlement-${deleteModal.settlementId || ''}`, async () => {
+						await deleteTransaction(user.uid, deleteModal.settlementId!);
+						toast.success("Settlement deleted");
+						refetch();
+					});
 				}}
 				title="Delete Settlement"
 				description={`Are you sure you want to delete "${deleteModal.settlementItem}"? This action cannot be undone.`}
 				confirmText="Delete"
 				cancelText="Cancel"
+				isLoading={isLoading(`delete-settlement-${deleteModal.settlementId || ''}`)}
 			/>
 		</div>
 	);

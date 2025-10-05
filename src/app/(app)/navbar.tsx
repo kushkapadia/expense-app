@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, ReceiptText, Target, Handshake, Settings, BarChart3, History, LogOut, Users } from "lucide-react";
+import { Home, ReceiptText, Target, Handshake, Settings, BarChart3, History, LogOut, Users, Wifi, WifiOff } from "lucide-react";
 import { toast } from "sonner";
+import { useOffline } from "@/hooks/use-offline";
 
 const links = [
 	{ href: "/dashboard", label: "Home", icon: Home },
@@ -21,6 +22,7 @@ const links = [
 
 export default function NavBar() {
 	const { user, signOut } = useAuth();
+	const { isOffline } = useOffline();
 	const pathname = usePathname();
 	return (
 		<>
@@ -34,6 +36,20 @@ export default function NavBar() {
 						))}
 					</nav>
 					<div className="flex items-center gap-3">
+						{/* Connection Status Indicator */}
+						<div className="flex items-center gap-1 text-xs">
+							{isOffline ? (
+								<>
+									<WifiOff className="h-3 w-3 text-orange-500" />
+									<span className="text-orange-500 hidden lg:inline">Offline</span>
+								</>
+							) : (
+								<>
+									<Wifi className="h-3 w-3 text-green-500" />
+									<span className="text-green-500 hidden lg:inline">Online</span>
+								</>
+							)}
+						</div>
 						<ThemeToggle />
 						{user ? (
 							<Button variant="outline" size="sm" onClick={() => {
@@ -49,6 +65,17 @@ export default function NavBar() {
 					</div>
 				</div>
 			</header>
+
+			{/* Mobile connection status indicator */}
+			<div className="sm:hidden fixed top-4 right-4 z-40">
+				<div className="flex items-center gap-1 bg-background/90 backdrop-blur rounded-full px-2 py-1 border">
+					{isOffline ? (
+						<WifiOff className="h-3 w-3 text-orange-500" />
+					) : (
+						<Wifi className="h-3 w-3 text-green-500" />
+					)}
+				</div>
+			</div>
 
 			{/* Mobile bottom nav with icons */}
 			<nav className="sm:hidden fixed bottom-0 left-0 right-0 z-30 border-t bg-background/95 backdrop-blur pb-[calc(env(safe-area-inset-bottom))]">

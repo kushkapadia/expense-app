@@ -18,6 +18,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input as UITextInput } from "@/components/ui/input";
 import { Label as UILabel } from "@/components/ui/label";
 import { ConfirmationModal } from "@/components/confirmation-modal";
+import { LoadingButton } from "@/components/ui/loading-button";
+import { useLoading } from "@/hooks/use-loading";
 
 const schema = z.object({
 	date: z.string(),
@@ -32,6 +34,7 @@ const schema = z.object({
 
 export default function TransactionsPage() {
 	const { user } = useAuth();
+	const { isLoading, withLoading } = useLoading();
 	const [walletFilter, setWalletFilter] = useState<WalletType | "all">("all");
 	const [typeFilter, setTypeFilter] = useState<"all" | "expense" | "income" | "transfer">("all");
 	const [openEditModals, setOpenEditModals] = useState<Record<string, boolean>>({});
@@ -65,34 +68,38 @@ export default function TransactionsPage() {
 
 	async function onSubmit(values: z.infer<typeof schema>) {
 		if (!user) return;
-		await createTransaction(user.uid, {
-			date: new Date(values.date).getTime(),
-			amount: values.amount,
-			category: values.category,
-		item: values.item,
-			wallet: values.wallet as WalletType,
-			type: values.type,
-			notes: values.notes,
-			isSettlement: values.isSettlement,
-			settled: values.type === "transfer" ? true : false,
+		await withLoading("create-transaction", async () => {
+			await createTransaction(user.uid, {
+				date: new Date(values.date).getTime(),
+				amount: values.amount,
+				category: values.category,
+				item: values.item,
+				wallet: values.wallet as WalletType,
+				type: values.type,
+				notes: values.notes,
+				isSettlement: values.isSettlement,
+				settled: values.type === "transfer" ? true : false,
+			});
+			// Wallet balance updates are now handled in createTransaction
+			toast.success("Transaction added");
+			form.reset({ ...form.getValues(), amount: 0, category: "", isSettlement: false });
+			refetch();
 		});
-		// Wallet balance updates are now handled in createTransaction
-		toast.success("Transaction added");
-		form.reset({ ...form.getValues(), amount: 0, category: "", isSettlement: false });
-		refetch();
 	}
 
 
 	async function settle(txId: string, wallet: WalletType) {
 		if (!user) return;
-		await markSettlement(user.uid, txId);
-		// Add the settlement amount to the selected wallet
-		const tx = recent?.find((t: any) => t.id === txId);
-		if (tx) {
-			await adjustWalletBalance(user.uid, wallet, tx.amount, `Settlement: ${tx.category}`);
-		}
-		toast.success(`Settled via ${wallet}`);
-		refetch();
+		await withLoading(`settle-${txId}`, async () => {
+			await markSettlement(user.uid, txId);
+			// Add the settlement amount to the selected wallet
+			const tx = recent?.find((t: any) => t.id === txId);
+			if (tx) {
+				await adjustWalletBalance(user.uid, wallet, tx.amount, `Settlement: ${tx.category}`);
+			}
+			toast.success(`Settled via ${wallet}`);
+			refetch();
+		});
 	}
 
     const filtered = (recent || [])
@@ -154,7 +161,14 @@ export default function TransactionsPage() {
 							<Input {...form.register("notes")} placeholder="Optional" />
 						</div>
 						<div className="sm:col-span-2">
-							<Button type="submit" className="w-full">Add</Button>
+							<LoadingButton 
+								type="submit" 
+								className="w-full"
+								loading={isLoading("create-transaction")}
+								loadingText="Adding..."
+							>
+								Add
+							</LoadingButton>
 						</div>
 					</form>
 					<div className="mt-3 flex flex-wrap gap-2">
@@ -248,17 +262,25 @@ export default function TransactionsPage() {
 												<UITextInput defaultValue={t.item || ""} id={`itm-${t.id}`} />
 												<UILabel>Notes</UILabel>
 												<UITextInput defaultValue={t.notes || ""} id={`note-${t.id}`} />
-												<Button onClick={async () => {
-													if (!user) return;
-													const amt = Number((document.getElementById(`amt-${t.id}`) as HTMLInputElement)?.value || t.amount);
-													const cat = (document.getElementById(`cat-${t.id}`) as HTMLInputElement)?.value || t.category;
-													const itm = (document.getElementById(`itm-${t.id}`) as HTMLInputElement)?.value || t.item;
-													const note = (document.getElementById(`note-${t.id}`) as HTMLInputElement)?.value || t.notes;
-													await updateTransaction(user.uid, t.id, { amount: amt, category: cat, item: itm, notes: note });
-													toast.success("Transaction updated");
-													setOpenEditModals(prev => ({ ...prev, [t.id]: false }));
-													refetch();
-												}}>Save</Button>
+												<LoadingButton 
+													loading={isLoading(`update-transaction-${t.id}`)}
+													loadingText="Saving..."
+													onClick={async () => {
+														if (!user) return;
+														await withLoading(`update-transaction-${t.id}`, async () => {
+															const amt = Number((document.getElementById(`amt-${t.id}`) as HTMLInputElement)?.value || t.amount);
+															const cat = (document.getElementById(`cat-${t.id}`) as HTMLInputElement)?.value || t.category;
+															const itm = (document.getElementById(`itm-${t.id}`) as HTMLInputElement)?.value || t.item;
+															const note = (document.getElementById(`note-${t.id}`) as HTMLInputElement)?.value || t.notes;
+															await updateTransaction(user.uid, t.id, { amount: amt, category: cat, item: itm, notes: note });
+															toast.success("Transaction updated");
+															setOpenEditModals(prev => ({ ...prev, [t.id]: false }));
+															refetch();
+														});
+													}}
+												>
+													Save
+												</LoadingButton>
 											</div>
 										</DialogContent>
 									</Dialog>
@@ -280,8 +302,22 @@ export default function TransactionsPage() {
 													<DialogTitle>Settle via</DialogTitle>
 												</DialogHeader>
 												<div className="grid gap-3">
-													<Button onClick={() => settle(t.id, "cash")} className="w-full">💵 Cash</Button>
-													<Button onClick={() => settle(t.id, "gpay")} className="w-full">📲 GPay</Button>
+													<LoadingButton 
+														loading={isLoading(`settle-${t.id}`)}
+														loadingText="Settling..."
+														onClick={() => settle(t.id, "cash")} 
+														className="w-full"
+													>
+														💵 Cash
+													</LoadingButton>
+													<LoadingButton 
+														loading={isLoading(`settle-${t.id}`)}
+														loadingText="Settling..."
+														onClick={() => settle(t.id, "gpay")} 
+														className="w-full"
+													>
+														📲 GPay
+													</LoadingButton>
 												</div>
 											</DialogContent>
 										</Dialog>
@@ -300,14 +336,17 @@ export default function TransactionsPage() {
 				onClose={() => setDeleteModal({ isOpen: false, transactionId: null, transactionItem: "" })}
 				onConfirm={async () => {
 					if (!user || !deleteModal.transactionId) return;
-					await deleteTransaction(user.uid, deleteModal.transactionId);
-					toast.success("Transaction deleted");
-					refetch();
+					await withLoading(`delete-transaction-${deleteModal.transactionId || ''}`, async () => {
+						await deleteTransaction(user.uid, deleteModal.transactionId!);
+						toast.success("Transaction deleted");
+						refetch();
+					});
 				}}
 				title="Delete Transaction"
 				description={`Are you sure you want to delete "${deleteModal.transactionItem}"? This action cannot be undone.`}
 				confirmText="Delete"
 				cancelText="Cancel"
+				isLoading={isLoading(`delete-transaction-${deleteModal.transactionId || ''}`)}
 			/>
 		</div>
 	);
