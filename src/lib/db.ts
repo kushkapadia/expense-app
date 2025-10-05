@@ -5,20 +5,26 @@ import type { Transaction, Wallet, WalletType, Budget, Preset, WalletHistory, Ex
 const db = () => getFirestoreDb();
 
 export async function getOrCreateWallet(userId: string, type: WalletType): Promise<Wallet> {
-	const ref = doc(db(), "wallets", `${userId}_${type}`);
-	const snap = await getDoc(ref);
-	if (snap.exists()) return snap.data() as Wallet;
-	const wallet: Wallet = {
-		id: ref.id,
-		userId,
-		type,
-		name: type === "cash" ? "Cash" : type === "gpay" ? "GPay" : "Investment",
-		balance: 0,
-		createdAt: Date.now(),
-		updatedAt: Date.now(),
-	};
-	await setDoc(ref, wallet);
-	return wallet;
+	try {
+		const ref = doc(db(), "wallets", `${userId}_${type}`);
+		const snap = await getDoc(ref);
+		if (snap.exists()) return snap.data() as Wallet;
+		const wallet: Wallet = {
+			id: ref.id,
+			userId,
+			type,
+			name: type === "cash" ? "Cash" : type === "gpay" ? "GPay" : "Investment",
+			balance: 0,
+			createdAt: Date.now(),
+			updatedAt: Date.now(),
+		};
+		await setDoc(ref, wallet);
+		console.log(`Created wallet for user ${userId}, type ${type}`);
+		return wallet;
+	} catch (error) {
+		console.error(`Error creating wallet for user ${userId}, type ${type}:`, error);
+		throw error;
+	}
 }
 
 export async function getWallets(userId: string): Promise<Record<WalletType, Wallet>> {
@@ -42,26 +48,38 @@ export async function listRecentTransactions(userId: string, take = 10) {
 }
 
 export async function createTransaction(userId: string, tx: Omit<Transaction, "id" | "userId" | "createdAt" | "updatedAt">) {
-	// Remove undefined fields – Firestore rejects undefined
-	const cleaned: Record<string, unknown> = {};
-	for (const [k, v] of Object.entries(tx)) {
-		if (v !== undefined) cleaned[k] = v;
+	try {
+		console.log(`Creating transaction for user ${userId}:`, tx);
+		
+		// Remove undefined fields – Firestore rejects undefined
+		const cleaned: Record<string, unknown> = {};
+		for (const [k, v] of Object.entries(tx)) {
+			if (v !== undefined) cleaned[k] = v;
+		}
+		
+		console.log(`Adding transaction document for user ${userId}`);
+		const ref = await addDoc(collection(db(), "transactions"), {
+			...cleaned,
+			userId,
+			createdAt: Date.now(),
+			updatedAt: Date.now(),
+		});
+		console.log(`Transaction created with ID: ${ref.id}`);
+		
+		// Update wallet balance based on transaction type
+		if (tx.type === "expense") {
+			console.log(`Adjusting wallet balance for expense: -${tx.amount} to ${tx.wallet}`);
+			await adjustWalletBalance(userId, tx.wallet, -tx.amount);
+		} else if (tx.type === "income") {
+			console.log(`Adjusting wallet balance for income: +${tx.amount} to ${tx.wallet}`);
+			await adjustWalletBalance(userId, tx.wallet, tx.amount);
+		}
+		
+		return ref.id;
+	} catch (error) {
+		console.error(`Error creating transaction for user ${userId}:`, error);
+		throw error;
 	}
-	const ref = await addDoc(collection(db(), "transactions"), {
-		...cleaned,
-		userId,
-		createdAt: Date.now(),
-		updatedAt: Date.now(),
-	});
-	
-	// Update wallet balance based on transaction type
-	if (tx.type === "expense") {
-		await adjustWalletBalance(userId, tx.wallet, -tx.amount);
-	} else if (tx.type === "income") {
-		await adjustWalletBalance(userId, tx.wallet, tx.amount);
-	}
-	
-	return ref.id;
 }
 
 // Updates a transaction and safely adjusts wallet balances based on the delta
@@ -121,21 +139,27 @@ export async function deleteTransaction(userId: string, txId: string) {
 }
 
 export async function adjustWalletBalance(userId: string, wallet: WalletType, delta: number, reason?: string) {
-	await getOrCreateWallet(userId, wallet);
-	const wref = doc(db(), "wallets", `${userId}_${wallet}`);
-	await updateDoc(wref, { balance: increment(delta), updatedAt: Date.now() });
-	
-	// Record wallet history for positive adjustments (additions)
-	if (delta > 0) {
-		await addDoc(collection(db(), "walletHistory"), {
-			userId,
-			wallet,
-			amount: delta,
-			type: "add",
-			reason: reason || "Manual addition",
-			createdAt: Date.now(),
-			updatedAt: Date.now()
-		});
+	try {
+		await getOrCreateWallet(userId, wallet);
+		const wref = doc(db(), "wallets", `${userId}_${wallet}`);
+		await updateDoc(wref, { balance: increment(delta), updatedAt: Date.now() });
+		console.log(`Adjusted wallet balance for user ${userId}, wallet ${wallet}, delta ${delta}`);
+		
+		// Record wallet history for positive adjustments (additions)
+		if (delta > 0) {
+			await addDoc(collection(db(), "walletHistory"), {
+				userId,
+				wallet,
+				amount: delta,
+				type: "add",
+				reason: reason || "Manual addition",
+				createdAt: Date.now(),
+				updatedAt: Date.now()
+			});
+		}
+	} catch (error) {
+		console.error(`Error adjusting wallet balance for user ${userId}, wallet ${wallet}, delta ${delta}:`, error);
+		throw error;
 	}
 }
 

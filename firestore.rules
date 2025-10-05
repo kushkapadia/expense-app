@@ -7,7 +7,7 @@ service cloud.firestore {
     }
     
     function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;`
+      return isAuthenticated() && request.auth.uid == userId;
     }
     
     function isGroupMember(groupId) {
@@ -18,14 +18,22 @@ service cloud.firestore {
     
     // Wallets - users can only access their own wallets
     match /wallets/{walletId} {
-      allow read, write: if isOwner(resource.data.userId);
-      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.userId;
+      allow read, write: if isAuthenticated() && 
+        (request.auth.uid == resource.data.userId || 
+         request.auth.uid == walletId.split('_')[0]);
+      allow create: if isAuthenticated() && 
+        (request.auth.uid == request.resource.data.userId || 
+         request.auth.uid == walletId.split('_')[0]);
+      allow update: if isAuthenticated() && 
+        (request.auth.uid == request.resource.data.userId || 
+         request.auth.uid == walletId.split('_')[0]);
     }
     
     // Transactions - users can only access their own transactions
     match /transactions/{transactionId} {
       allow read, write: if isOwner(resource.data.userId);
       allow create: if isAuthenticated() && request.auth.uid == request.resource.data.userId;
+      allow update: if isAuthenticated() && request.auth.uid == request.resource.data.userId;
     }
     
     // Budgets - users can only access their own budgets
@@ -56,6 +64,7 @@ service cloud.firestore {
     match /walletHistory/{historyId} {
       allow read, write: if isOwner(resource.data.userId);
       allow create: if isAuthenticated() && request.auth.uid == request.resource.data.userId;
+      allow update: if isAuthenticated() && request.auth.uid == request.resource.data.userId;
     }
     
     // Expense Groups - group members can read, anyone can read by invitation code, only owner can modify
