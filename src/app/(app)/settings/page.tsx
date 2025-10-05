@@ -71,9 +71,6 @@ export default function SettingsPage() {
 
 	return (
 		<div className="container mx-auto max-w-3xl py-6 space-y-6">
-			{/* Offline Test Component - Remove this in production */}
-			<OfflineTest />
-			
 			<Card>
 				<CardHeader>
 					<CardTitle>Quick Presets</CardTitle>

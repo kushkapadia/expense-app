@@ -26,7 +26,7 @@ export default function BudgetsPage() {
 		budgetCategory: null,
 	});
 
-	const { data: budgets } = useQuery({
+	const { data: budgets, refetch: refetchBudgets } = useQuery({
 		queryKey: ["budgets", user?.uid, month],
 		enabled: !!user,
 		queryFn: async () => {
@@ -65,6 +65,7 @@ export default function BudgetsPage() {
 			toast.success("Budget saved");
 			categoryRef.current!.value = "";
 			limitRef.current!.value = "";
+			refetchBudgets();
 		});
 	}
 
@@ -119,6 +120,7 @@ export default function BudgetsPage() {
 												await withLoading(`edit-budget-${b.category}`, async () => {
 													await updateBudget(user.uid, month, b.category, { limit: newLimit }); 
 													toast.success("Budget updated");
+													refetchBudgets();
 												});
 											}}
 										>
@@ -162,6 +164,7 @@ export default function BudgetsPage() {
 					await withLoading(`delete-budget-${deleteModal.budgetCategory || ''}`, async () => {
 						await deleteBudget(user.uid, month, deleteModal.budgetCategory!);
 						toast.success("Budget deleted");
+						refetchBudgets();
 					});
 				}}
 				title="Delete Budget"
