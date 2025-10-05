@@ -5,13 +5,14 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, ReceiptText, Target, Handshake, Settings, BarChart3, History, LogOut } from "lucide-react";
+import { Home, ReceiptText, Target, Handshake, Settings, BarChart3, History, LogOut, Users } from "lucide-react";
 import { toast } from "sonner";
 
 const links = [
 	{ href: "/dashboard", label: "Home", icon: Home },
 	{ href: "/transactions", label: "Transactions", icon: ReceiptText },
 	{ href: "/budgets", label: "Budgets", icon: Target },
+	{ href: "/groups", label: "Groups", icon: Users },
 	{ href: "/analytics", label: "Analytics", icon: BarChart3 },
 	{ href: "/wallet-history", label: "History", icon: History },
 	{ href: "/settlements", label: "Settle", icon: Handshake },

@@ -3,13 +3,14 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
-import { listTransactions, markSettlement, adjustWalletBalance, deleteTransaction, updateTransaction } from "@/lib/db";
+import { listTransactions, markSettlement, adjustWalletBalance, deleteTransaction, updateTransaction, getGroupSettlements, markSettlementComplete, getUserExpenseGroups } from "@/lib/db";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import Link from "next/link";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import type { WalletType } from "@/types/db";
+import type { WalletType, GroupSettlement } from "@/types/db";
 import { useState } from "react";
+import { getUserDisplayNameById } from "@/lib/user-utils";
 
 export default function SettlementsPage() {
 	const { user } = useAuth();
@@ -18,17 +19,35 @@ export default function SettlementsPage() {
 		queryKey: ["settlements", user?.uid],
 		enabled: !!user,
 		queryFn: async () => {
-			if (!user) return [] as any[];
-			const all = await listTransactions(user.uid);
-			return all.filter((t: any) => t.isSettlement && !t.settled);
+			if (!user) return { individual: [], group: [] };
+			
+			// Fetch individual settlements (from transactions)
+			const allTransactions = await listTransactions(user.uid);
+			const individualSettlements = allTransactions.filter((t: any) => t.isSettlement && !t.settled);
+			
+			// Fetch group settlements where user is involved
+			// We need to get all groups the user is part of first
+			const userGroups = await getUserExpenseGroups(user.uid);
+			const groupSettlements: GroupSettlement[] = [];
+			
+			for (const group of userGroups) {
+				const settlements = await getGroupSettlements(group.id);
+				// Filter settlements where user is either the debtor or creditor
+				const userSettlements = settlements.filter(s => 
+					s.fromUserId === user.uid || s.toUserId === user.uid
+				);
+				groupSettlements.push(...userSettlements);
+			}
+			
+			return { individual: individualSettlements, group: groupSettlements };
 		},
 	});
 
-	async function settle(id: string, wallet: WalletType) {
+	async function settleIndividual(id: string, wallet: WalletType) {
 		if (!user) return;
 		await markSettlement(user.uid, id, wallet);
 		// Add the settlement amount to the selected wallet
-		const tx = data?.find((t: any) => t.id === id);
+		const tx = data?.individual.find((t: any) => t.id === id);
 		if (tx) {
 			await adjustWalletBalance(user.uid, wallet, tx.amount, `Settlement: ${tx.category}`);
 		}
@@ -36,14 +55,22 @@ export default function SettlementsPage() {
 		refetch();
 	}
 
+	async function settleGroup(settlementId: string, wallet: WalletType) {
+		if (!user) return;
+		await markSettlementComplete(settlementId, wallet);
+		toast.success(`Group settlement completed via ${wallet}`);
+		refetch();
+	}
+
 	return (
 		<div className="container mx-auto max-w-3xl py-6 space-y-6 pb-24">
+			{/* Individual Settlements */}
 			<Card>
 				<CardHeader>
-					<CardTitle>Pending Settlements</CardTitle>
+					<CardTitle>Individual Settlements</CardTitle>
 				</CardHeader>
 				<CardContent className="space-y-2">
-					{(data || []).map((t: any) => (
+					{(data?.individual || []).map((t: any) => (
 						<div key={t.id} className="flex items-center justify-between text-sm py-2 border-b last:border-b-0">
                             <div>
                                 <div className="font-medium">{t.category} {t.item ? `• ${t.item}` : ""}</div>
@@ -60,8 +87,8 @@ export default function SettlementsPage() {
                                             <DialogTitle>Settle via</DialogTitle>
                                         </DialogHeader>
                                         <div className="grid gap-3">
-                                            <Button onClick={() => settle(t.id, "cash")} className="w-full">💵 Cash</Button>
-                                            <Button onClick={() => settle(t.id, "gpay")} className="w-full">📲 GPay</Button>
+                                            <Button onClick={() => settleIndividual(t.id, "cash")} className="w-full">💵 Cash</Button>
+                                            <Button onClick={() => settleIndividual(t.id, "gpay")} className="w-full">📲 GPay</Button>
                                         </div>
                                     </DialogContent>
                                 </Dialog>
@@ -94,9 +121,58 @@ export default function SettlementsPage() {
                             </div>
 						</div>
 					))}
-					{(data || []).length === 0 && (
+					{(data?.individual || []).length === 0 && (
 						<div className="text-muted-foreground text-sm">
-							No pending settlements. Create one from <Link className="underline" href="/transactions">Transactions</Link> by checking &quot;Paid for someone else&quot;.
+							No individual settlements. Create one from <Link className="underline" href="/transactions">Transactions</Link> by checking &quot;Paid for someone else&quot;.
+						</div>
+					)}
+				</CardContent>
+			</Card>
+
+			{/* Group Settlements */}
+			<Card>
+				<CardHeader>
+					<CardTitle>Group Settlements</CardTitle>
+				</CardHeader>
+				<CardContent className="space-y-2">
+					{(data?.group || []).map((settlement: GroupSettlement) => (
+						<div key={settlement.id} className="flex items-center justify-between text-sm py-2 border-b last:border-b-0">
+                            <div>
+                                <div className="font-medium">
+									{settlement.fromUserId === user?.uid ? "You owe" : `${getUserDisplayNameById(settlement.fromUserId)} owes`} 
+									{settlement.toUserId === user?.uid ? " you" : ` ${getUserDisplayNameById(settlement.toUserId)}`}
+								</div>
+                                <div className="text-muted-foreground">₹{settlement.amount} • Group settlement</div>
+							</div>
+                            <div className="flex items-center gap-2">
+								{settlement.status === "pending" && settlement.fromUserId === user?.uid && (
+									<Dialog>
+										<DialogTrigger asChild>
+											<Button size="sm" variant="outline">Mark Settled</Button>
+										</DialogTrigger>
+										<DialogContent>
+											<DialogHeader>
+												<DialogTitle>Settle via</DialogTitle>
+											</DialogHeader>
+											<div className="grid gap-3">
+												<Button onClick={() => settleGroup(settlement.id, "cash")} className="w-full">💵 Cash</Button>
+												<Button onClick={() => settleGroup(settlement.id, "gpay")} className="w-full">📲 GPay</Button>
+											</div>
+										</DialogContent>
+									</Dialog>
+								)}
+								{settlement.status === "completed" && (
+									<span className="text-green-600 text-xs font-medium">Completed</span>
+								)}
+								{settlement.status === "pending" && settlement.toUserId === user?.uid && (
+									<span className="text-muted-foreground text-xs">Waiting for payment</span>
+								)}
+                            </div>
+						</div>
+					))}
+					{(data?.group || []).length === 0 && (
+						<div className="text-muted-foreground text-sm">
+							No group settlements. Create expenses in <Link className="underline" href="/groups">Groups</Link> to generate settlements.
 						</div>
 					)}
 				</CardContent>

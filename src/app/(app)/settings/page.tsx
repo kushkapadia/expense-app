@@ -30,6 +30,7 @@ export default function SettingsPage() {
 		},
 	});
 
+
 	async function addPreset() {
 		if (!user) return;
 		const emoji = emojiRef.current?.value || "";

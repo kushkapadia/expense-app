@@ -79,6 +79,74 @@ export interface WalletHistory {
 	updatedAt: number;
 }
 
+// Group Expense Sharing Types
+export interface ExpenseGroup {
+	id: string;
+	name: string;
+	description?: string;
+	ownerId: string; // User who created the group
+	memberIds: string[]; // Array of user IDs who are members
+	invitationCode: string; // Unique code for joining
+	createdAt: number;
+	updatedAt: number;
+}
+
+export interface GroupInvitation {
+	id: string;
+	groupId: string;
+	invitedBy: string; // User ID who sent the invitation
+	invitedEmail?: string; // Email of person being invited (optional)
+	invitationCode: string; // Same as group's invitation code
+	status: "pending" | "accepted" | "declined" | "expired";
+	expiresAt: number;
+	createdAt: number;
+	updatedAt: number;
+}
+
+export interface GroupExpense {
+	id: string;
+	groupId: string;
+	paidBy: string; // User ID who paid
+	amount: number;
+	description: string;
+	category: string;
+	splitType: "equal" | "custom"; // How the expense is split
+	splitDetails: GroupExpenseSplit[]; // Who owes what
+	date: number; // epoch ms
+	createdAt: number;
+	updatedAt: number;
+}
+
+export interface GroupExpenseSplit {
+	userId: string;
+	amount: number; // How much this user owes
+	settled: boolean; // Whether this user has paid their share
+	settledAt?: number; // When they settled
+	settledBy?: string; // Who marked it as settled
+}
+
+export interface GroupSettlement {
+	id: string;
+	groupId: string;
+	fromUserId: string; // Who owes money
+	toUserId: string; // Who should receive money
+	amount: number;
+	status: "pending" | "completed";
+	expenseId?: string; // Optional: which expense this settlement is for
+	completedAt?: number;
+	createdAt: number;
+	updatedAt: number;
+}
+
+export interface UserName {
+	id: string;
+	userId: string;
+	displayName: string;
+	createdAt: number;
+	updatedAt: number;
+}
+
+
 export const collections = {
 	wallets: "wallets",
 	transactions: "transactions",
@@ -86,5 +154,10 @@ export const collections = {
 	presets: "presets",
 	incomes: "incomes",
 	investmentLocks: "investmentLocks",
+	expenseGroups: "expenseGroups",
+	groupInvitations: "groupInvitations",
+	groupExpenses: "groupExpenses",
+	groupSettlements: "groupSettlements",
+	userNames: "userNames",
 } as const;
 

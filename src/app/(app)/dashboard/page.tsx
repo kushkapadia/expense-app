@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useQuery } from "@tanstack/react-query";
-import { getWallets, applyPreset, adjustWalletBalance, listRecentTransactions, listTransactions, listPresets, ensureBudgetsForMonth } from "@/lib/db";
+import { getWallets, applyPreset, adjustWalletBalance, listRecentTransactions, listTransactions, listPresets, ensureBudgetsForMonth, getGroupSettlements, getUserExpenseGroups } from "@/lib/db";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 import { useMemo, useRef, useState } from "react";
@@ -94,9 +94,26 @@ export default function DashboardPage() {
 		queryKey: ["settlements-snippet", user?.uid],
 		enabled: !!user,
 		queryFn: async () => {
-			if (!user) return [] as any[];
-			const all = await listTransactions(user.uid);
-			return all.filter((t: any) => t.isSettlement && !t.settled).slice(0, 5);
+			if (!user) return { individual: [], group: [] };
+			
+			// Fetch individual settlements
+			const allTransactions = await listTransactions(user.uid);
+			const individualSettlements = allTransactions.filter((t: any) => t.isSettlement && !t.settled).slice(0, 3);
+			
+			// Fetch group settlements where user is involved
+			const userGroups = await getUserExpenseGroups(user.uid);
+			const groupSettlements: any[] = [];
+			
+			for (const group of userGroups) {
+				const settlements = await getGroupSettlements(group.id);
+				const userSettlements = settlements.filter(s => 
+					s.fromUserId === user.uid || s.toUserId === user.uid
+				);
+				groupSettlements.push(...userSettlements);
+			}
+			
+			// Limit group settlements to 2 for dashboard
+			return { individual: individualSettlements, group: groupSettlements.slice(0, 2) };
 		},
 	});
 
@@ -257,13 +274,25 @@ export default function DashboardPage() {
 							<CardTitle>Pending Settlements</CardTitle>
 						</CardHeader>
 						<CardContent className="space-y-2">
-							{(settlements || []).map((t: any) => (
-								<div key={t.id ?? t.createdAt} className="text-sm flex items-center justify-between">
+							{/* Individual Settlements */}
+							{(settlements?.individual || []).map((t: any) => (
+								<div key={t.id} className="text-sm flex items-center justify-between">
 									<div>{t.category} • ₹{t.amount}</div>
 									<div className="text-muted-foreground">{new Date(t.date).toLocaleDateString()}</div>
 								</div>
 							))}
-							{(settlements || []).length === 0 && <div className="text-sm text-muted-foreground">No pending settlements</div>}
+							
+							{/* Group Settlements */}
+							{(settlements?.group || []).map((s: any) => (
+								<div key={s.id} className="text-sm flex items-center justify-between">
+									<div>Group • ₹{s.amount}</div>
+									<div className="text-muted-foreground">{s.status === "pending" ? "Pending" : "Completed"}</div>
+								</div>
+							))}
+							
+							{((settlements?.individual || []).length + (settlements?.group || []).length) === 0 && (
+								<div className="text-sm text-muted-foreground">No pending settlements</div>
+							)}
 							<Separator />
 						</CardContent>
 					</Card>
