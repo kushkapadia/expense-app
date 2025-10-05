@@ -134,21 +134,14 @@ export default function GroupPage() {
 				return;
 			}
 
-			// Create split details based on split type
-			let splitDetails;
-			if (splitType === "equal") {
-				const amountPerPerson = amount / selectedMembers.length;
-				splitDetails = selectedMembers
-					.map(memberId => ({
-						userId: memberId,
-						amount: amountPerPerson,
-						settled: memberId === user.uid // Person who paid is already "settled"
-					}));
-			} else {
-				// For custom splits, we'll implement this later
-				toast.error("Custom splits not implemented yet");
-				return;
-			}
+			// Create split details - always equal split for now
+			const amountPerPerson = amount / selectedMembers.length;
+			const splitDetails = selectedMembers
+				.map(memberId => ({
+					userId: memberId,
+					amount: amountPerPerson,
+					settled: memberId === user.uid // Person who paid is already "settled"
+				}));
 
 			console.log("💸 Creating expense with details:", {
 				groupId,
@@ -156,7 +149,7 @@ export default function GroupPage() {
 				amount,
 				description: expenseDescription,
 				category: expenseCategory,
-				splitType,
+				splitType: "equal",
 				splitDetails,
 				wallet: expenseWallet
 			});
@@ -167,7 +160,7 @@ export default function GroupPage() {
 				amount,
 				expenseDescription,
 				expenseCategory,
-				splitType,
+				"equal", // Always use equal split for now
 				splitDetails,
 				expenseWallet
 			);
@@ -399,15 +392,15 @@ export default function GroupPage() {
 									</SelectContent>
 								</Select>
 							</div>
-							<div>
+							{/* Split Type - Hidden for now, defaulting to equal split */}
+							<div className="hidden">
 								<Label htmlFor="splitType">Split Type</Label>
-								<Select value={splitType} onValueChange={(value: "equal" | "custom") => setSplitType(value)}>
+								<Select value="equal" onValueChange={() => {}}>
 									<SelectTrigger>
 										<SelectValue />
 									</SelectTrigger>
 									<SelectContent>
 										<SelectItem value="equal">Equal Split</SelectItem>
-										<SelectItem value="custom">Custom Split</SelectItem>
 									</SelectContent>
 								</Select>
 							</div>

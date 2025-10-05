@@ -824,13 +824,18 @@ export async function markSettlementComplete(
 		// Create transaction record for the debtor (this should always work)
 		try {
 			console.log("Creating transaction record...");
+			
+			// Fetch user names for better transaction descriptions
+			const userNames = await getUserNames([settlement.toUserId]);
+			const toUserName = userNames[settlement.toUserId] || `User ${settlement.toUserId.slice(-4)}`;
+			
 			const debtorTransaction: Omit<Transaction, "id"> = {
 				userId: settlement.fromUserId,
 				amount: settlement.amount,
 				category: "settlement",
 				wallet: walletType,
 				type: "expense",
-				item: `Settlement payment to ${settlement.toUserId}`,
+				item: `Settlement payment to ${toUserName}`,
 				notes: notes || "Group settlement payment",
 				date: Date.now(),
 				createdAt: Date.now(),
@@ -845,7 +850,7 @@ export async function markSettlementComplete(
 				userId: settlement.fromUserId,
 				wallet: walletType,
 				amount: -settlement.amount,
-				reason: `Settlement payment: ${notes || "Group settlement"}`,
+				reason: `Settlement payment to ${toUserName}: ${notes || "Group settlement"}`,
 				createdAt: Date.now(),
 				updatedAt: Date.now(),
 			};
@@ -862,14 +867,17 @@ export async function markSettlementComplete(
 			const debtorWallet = await getOrCreateWallet(settlement.fromUserId, walletType);
 			console.log("Debtor wallet:", debtorWallet);
 			
-			if (debtorWallet.balance >= settlement.amount) {
-				await updateDoc(doc(db(), "wallets", `${settlement.fromUserId}_${walletType}`), {
-					balance: increment(-settlement.amount),
-					updatedAt: Date.now(),
-				});
-				console.log("Wallet updated successfully!");
+			// Always update the wallet balance, even if it goes negative
+			await updateDoc(doc(db(), "wallets", `${settlement.fromUserId}_${walletType}`), {
+				balance: increment(-settlement.amount),
+				updatedAt: Date.now(),
+			});
+			
+			const newBalance = debtorWallet.balance - settlement.amount;
+			if (newBalance < 0) {
+				console.warn(`Wallet balance went negative: ₹${newBalance}. User should be notified.`);
 			} else {
-				console.warn("Insufficient balance, skipping wallet update");
+				console.log("Wallet updated successfully!");
 			}
 		} catch (walletError) {
 			console.warn("Wallet operations failed:", walletError);

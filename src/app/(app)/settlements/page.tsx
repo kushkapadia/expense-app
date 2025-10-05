@@ -3,18 +3,19 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
-import { listTransactions, markSettlement, adjustWalletBalance, deleteTransaction, updateTransaction, getGroupSettlements, markSettlementComplete, getUserExpenseGroups } from "@/lib/db";
+import { listTransactions, markSettlement, adjustWalletBalance, deleteTransaction, updateTransaction, getGroupSettlements, markSettlementComplete, getUserExpenseGroups, getUserNames } from "@/lib/db";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import Link from "next/link";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import type { WalletType, GroupSettlement } from "@/types/db";
 import { useState } from "react";
-import { getUserDisplayNameById } from "@/lib/user-utils";
+import { getUserDisplayNameById, getUserDisplayName } from "@/lib/user-utils";
 
 export default function SettlementsPage() {
 	const { user } = useAuth();
 	const [openEditModals, setOpenEditModals] = useState<Record<string, boolean>>({});
+	const [userNames, setUserNames] = useState<Record<string, string>>({});
 	const { data, refetch } = useQuery({
 		queryKey: ["settlements", user?.uid],
 		enabled: !!user,
@@ -37,6 +38,19 @@ export default function SettlementsPage() {
 					s.fromUserId === user.uid || s.toUserId === user.uid
 				);
 				groupSettlements.push(...userSettlements);
+			}
+			
+			// Collect all unique user IDs from group settlements
+			const allUserIds = new Set<string>();
+			groupSettlements.forEach(settlement => {
+				allUserIds.add(settlement.fromUserId);
+				allUserIds.add(settlement.toUserId);
+			});
+			
+			// Fetch user names for all involved users
+			if (allUserIds.size > 0) {
+				const names = await getUserNames(Array.from(allUserIds));
+				setUserNames(names);
 			}
 			
 			return { individual: individualSettlements, group: groupSettlements };
@@ -139,8 +153,8 @@ export default function SettlementsPage() {
 						<div key={settlement.id} className="flex items-center justify-between text-sm py-2 border-b last:border-b-0">
                             <div>
                                 <div className="font-medium">
-									{settlement.fromUserId === user?.uid ? "You owe" : `${getUserDisplayNameById(settlement.fromUserId)} owes`} 
-									{settlement.toUserId === user?.uid ? " you" : ` ${getUserDisplayNameById(settlement.toUserId)}`}
+									{settlement.fromUserId === user?.uid ? "You owe" : `${getUserDisplayNameById(settlement.fromUserId, user, userNames)} owes`} 
+									{settlement.toUserId === user?.uid ? " you" : ` ${getUserDisplayNameById(settlement.toUserId, user, userNames)}`}
 								</div>
                                 <div className="text-muted-foreground">₹{settlement.amount} • Group settlement</div>
 							</div>
