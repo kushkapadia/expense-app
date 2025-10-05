@@ -110,8 +110,22 @@ export default function SettlementsPage() {
                                             <DialogTitle>Settle via</DialogTitle>
                                         </DialogHeader>
                                         <div className="grid gap-3">
-                                            <Button onClick={() => settleIndividual(t.id, "cash")} className="w-full">💵 Cash</Button>
-                                            <Button onClick={() => settleIndividual(t.id, "gpay")} className="w-full">📲 GPay</Button>
+                                            <LoadingButton 
+                                                loading={isLoading(`settle-individual-${t.id}`)}
+                                                loadingText="Settling..."
+                                                onClick={() => withLoading(`settle-individual-${t.id}`, async () => settleIndividual(t.id, "cash"))}
+                                                className="w-full"
+                                            >
+                                                💵 Cash
+                                            </LoadingButton>
+                                            <LoadingButton 
+                                                loading={isLoading(`settle-individual-${t.id}`)}
+                                                loadingText="Settling..."
+                                                onClick={() => withLoading(`settle-individual-${t.id}`, async () => settleIndividual(t.id, "gpay"))}
+                                                className="w-full"
+                                            >
+                                                📲 GPay
+                                            </LoadingButton>
                                         </div>
                                     </DialogContent>
                                 </Dialog>
@@ -191,10 +205,24 @@ export default function SettlementsPage() {
 											<DialogHeader>
 												<DialogTitle>Settle via</DialogTitle>
 											</DialogHeader>
-											<div className="grid gap-3">
-												<Button onClick={() => settleGroup(settlement.id, "cash")} className="w-full">💵 Cash</Button>
-												<Button onClick={() => settleGroup(settlement.id, "gpay")} className="w-full">📲 GPay</Button>
-											</div>
+                                            <div className="grid gap-3">
+                                                <LoadingButton 
+                                                    loading={isLoading(`settle-group-${settlement.id}`)}
+                                                    loadingText="Settling..."
+                                                    onClick={() => withLoading(`settle-group-${settlement.id}`, async () => settleGroup(settlement.id, "cash"))}
+                                                    className="w-full"
+                                                >
+                                                    💵 Cash
+                                                </LoadingButton>
+                                                <LoadingButton 
+                                                    loading={isLoading(`settle-group-${settlement.id}`)}
+                                                    loadingText="Settling..."
+                                                    onClick={() => withLoading(`settle-group-${settlement.id}`, async () => settleGroup(settlement.id, "gpay"))}
+                                                    className="w-full"
+                                                >
+                                                    📲 GPay
+                                                </LoadingButton>
+                                            </div>
 										</DialogContent>
 									</Dialog>
 								)}

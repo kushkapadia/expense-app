@@ -5,6 +5,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { LoadingButton } from "@/components/ui/loading-button";
+import { useLoading } from "@/hooks/use-loading";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useQuery } from "@tanstack/react-query";
@@ -21,6 +23,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 
 export default function DashboardPage() {
 	const { user } = useAuth();
+	const { isLoading, withLoading } = useLoading();
 	const router = useRouter();
 	const [openModals, setOpenModals] = useState<Record<string, boolean>>({});
 	const { data: wallets, refetch } = useQuery({
@@ -316,8 +319,22 @@ export default function DashboardPage() {
 									<DialogTitle>Apply preset via</DialogTitle>
 								</DialogHeader>
 								<div className="grid gap-3">
-									<Button onClick={() => onPreset(p.id, "cash")} className="w-full">💵 Cash</Button>
-									<Button onClick={() => onPreset(p.id, "gpay")} className="w-full">📲 GPay</Button>
+									<LoadingButton 
+										loading={isLoading(`apply-preset-dash-${p.id}`)}
+										loadingText="Applying..."
+										onClick={() => withLoading(`apply-preset-dash-${p.id}`, async () => onPreset(p.id, "cash"))}
+										className="w-full"
+									>
+										💵 Cash
+									</LoadingButton>
+									<LoadingButton 
+										loading={isLoading(`apply-preset-dash-${p.id}`)}
+										loadingText="Applying..."
+										onClick={() => withLoading(`apply-preset-dash-${p.id}`, async () => onPreset(p.id, "gpay"))}
+										className="w-full"
+									>
+										📲 GPay
+									</LoadingButton>
 								</div>
 							</DialogContent>
 						</Dialog>
